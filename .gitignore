@@ -1,0 +1,25 @@
+# Virtual environment
+venv/
+
+# Environment variables file (sensitive data)
+.env
+
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Database file
+db.sqlite3    <-- MAKE SURE THIS LINE IS PRESENT
+
+# Media files (uploaded by users)
+media/        <-- MAKE SURE THIS LINE IS PRESENT
+
+# IDE files (e.g., VS Code)
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Python packaging and distribution
+*.egg-info/
+dist/
+build/
