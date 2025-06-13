@@ -1,0 +1,65 @@
+<!-- templates/accounts/profile.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}{{ user_profile.username }}'s Profile{% endblock %}
+
+{% block content %}
+<div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8">
+        <div class="flex-shrink-0 relative"> {# Added relative for badge positioning #}
+            {% if user_profile.profile_picture %}
+                {# Display user's profile picture if available #}
+                <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.username }}'s Profile Picture"
+                     class="w-48 h-48 object-cover rounded-full border-4 border-pink-400 shadow-md">
+            {% else %}
+                <!-- Placeholder for no profile picture - displays first letter of username -->
+                <div class="w-48 h-48 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-6xl font-bold border-4 border-gray-300">
+                    {{ user_profile.username.0|upper }}
+                </div>
+            {% endif %}
+
+            {% if user_profile.is_premium %}
+                {# VIP Badge #}
+                <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
+                    VIP
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="flex-grow text-center md:text-left">
+            <h2 class="text-4xl font-extrabold text-gray-900 mb-2">{{ user_profile.username }}</h2>
+            <p class="text-xl text-gray-700 mb-4">{{ user_profile.get_full_name|default:"No Name" }}</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-gray-800">
+                {% if user_profile.date_of_birth %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Age:</strong> {{ user_profile.get_age }}</p>
+                {% endif %}
+                {% if user_profile.gender %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Gender:</strong> {{ user_profile.get_gender_display }}</p>
+                {% endif %}
+                {% if user_profile.location %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Location:</strong> {{ user_profile.location }}</p>
+                {% endif %}
+                {% if user_profile.user_type %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">User Type:</strong> {{ user_profile.get_user_type_display }}</p>
+                {% endif %}
+                {% if user_profile.seeking %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Seeking:</strong> {{ user_profile.get_seeking_display }}</p>
+                {% endif %}
+            </div>
+
+            {% if user_profile.bio %}
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">About Me:</h3>
+                    <p class="text-gray-800 leading-relaxed">{{ user_profile.bio }}</p>
+                </div>
+            {% endif %}
+
+            <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
+                <a href="{% url 'profile_edit' %}" class="btn btn-primary">Edit Profile</a>
+                <a href="{% url 'browse_profiles' %}" class="btn btn-secondary">Browse Profiles</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

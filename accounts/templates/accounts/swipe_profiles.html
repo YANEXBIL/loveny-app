@@ -1,0 +1,263 @@
+<!-- templates/accounts/swipe_profiles.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}Swipe Profiles{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] p-4">
+    <div id="profile-card-container" class="relative w-full max-w-sm h-[500px] flex items-center justify-center">
+        {# This section is now rendered by the partial template when fetched via AJAX #}
+        {% include 'accounts/includes/profile_card_partial.html' %}
+    </div>
+
+    {# Swipe Action Buttons (Optional, but good for non-touch/accuracy) #}
+    {% if profile %} {# Check if there's an initial profile to display buttons #}
+    <div class="mt-8 flex space-x-6">
+        <button id="dislike-btn" class="btn btn-secondary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            ❌
+        </button>
+        <button id="like-btn" class="btn btn-primary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            ❤️
+        </button>
+    </div>
+    {% else %}
+    {# If no initial profile, hide buttons #}
+    <div class="mt-8 flex space-x-6" id="swipe-buttons" style="display: none;">
+        <button id="dislike-btn" class="btn btn-secondary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            ❌
+        </button>
+        <button id="like-btn" class="btn btn-primary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            ❤️
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock content %} {# THIS CLOSES THE MAIN CONTENT BLOCK #}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // We'll get profileCard from its container after each update
+        let profileCardContainer = document.getElementById('profile-card-container');
+        let profileCard = document.getElementById('profile-card'); // Initial card
+        const dislikeBtn = document.getElementById('dislike-btn');
+        const likeBtn = document.getElementById('like-btn');
+        const swipeButtonsDiv = document.getElementById('swipe-buttons'); // Get the buttons container
+
+        // Function to bind/rebind event listeners to the profile card and buttons
+        function rebindEventListeners() {
+            // Get the current profile card (it changes after each swipe)
+            profileCard = document.getElementById('profile-card'); 
+
+            if (!profileCard) {
+                console.log("No profile card found after rebind. Hiding buttons.");
+                if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none'; // Hide buttons if no card
+                return;
+            } else {
+                if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'flex'; // Show buttons if card exists
+            }
+
+            // Remove existing listeners to prevent duplicates
+            profileCard.removeEventListener('mousedown', onStart);
+            profileCard.removeEventListener('mousemove', onMove);
+            profileCard.removeEventListener('mouseup', onEnd);
+            profileCard.removeEventListener('touchstart', onStart);
+            profileCard.removeEventListener('touchmove', onMove);
+            profileCard.removeEventListener('touchend', onEnd);
+
+            // Add new listeners
+            profileCard.addEventListener('mousedown', onStart);
+            profileCard.addEventListener('mousemove', onMove);
+            profileCard.addEventListener('mouseup', onEnd);
+            profileCard.addEventListener('touchstart', onStart);
+            profileCard.addEventListener('touchmove', onMove);
+            profileCard.addEventListener('touchend', onEnd);
+
+            // Rebind action buttons
+            if (dislikeBtn) dislikeBtn.onclick = () => { performAction('dislike'); animateSwipe('left', fetchNextProfile); };
+            if (likeBtn) likeBtn.onclick = () => { performAction('like'); animateSwipe('right', fetchNextProfile); };
+        }
+
+        // Initialize event listeners on page load
+        rebindEventListeners();
+
+        let startX, startY, currentX, currentY, dragging = false;
+        const THRESHOLD = 100; // Pixels to swipe before it's considered a like/dislike
+
+        // Functions to apply/reset styles
+        function resetCard() {
+            if (profileCard) {
+                profileCard.style.transition = 'transform 0.3s ease-out';
+                profileCard.style.transform = 'translate(0px, 0px) rotate(0deg)';
+                profileCard.style.opacity = '1';
+            }
+        }
+
+        function animateSwipe(direction, onComplete) {
+            if (!profileCard) {
+                if (onComplete) onComplete();
+                return;
+            }
+            profileCard.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
+            let translateX = 0;
+            let rotateZ = 0;
+
+            if (direction === 'left') {
+                translateX = -window.innerWidth;
+                rotateZ = -30;
+            } else if (direction === 'right') {
+                translateX = window.innerWidth;
+                rotateZ = 30;
+            }
+
+            profileCard.style.transform = `translate(${translateX}px, ${currentY - startY}px) rotate(${rotateZ}deg)`;
+            profileCard.style.opacity = '0';
+
+            profileCard.addEventListener('transitionend', function handler() {
+                profileCard.removeEventListener('transitionend', handler);
+                if (onComplete) onComplete();
+            }, { once: true }); // Use { once: true } to ensure handler runs only once
+        }
+
+        // --- Event Handlers for Swiping ---
+        function onStart(e) {
+            dragging = true;
+            if (profileCard) {
+                profileCard.style.transition = 'none'; // Disable transition during drag
+            }
+            startX = e.clientX || e.touches[0].clientX;
+            startY = e.clientY || e.touches[0].clientY;
+        }
+
+        function onMove(e) {
+            if (!dragging || !profileCard) return;
+            currentX = e.clientX || e.touches[0].clientX;
+            currentY = e.clientY || e.touches[0].clientY;
+            const translateX = currentX - startX;
+            const translateY = currentY - startY;
+            const rotation = translateX / 20; // Slight rotation effect
+
+            profileCard.style.transform = `translate(${translateX}px, ${translateY}px) rotate(${rotation}deg)`;
+        }
+
+        function onEnd(e) {
+            if (!dragging || !profileCard) return;
+            dragging = false;
+
+            const deltaX = (e.clientX || e.changedTouches[0].clientX) - startX;
+            // No need for deltaY if we're only interested in horizontal swipe for like/dislike
+            // const deltaY = (e.clientY || e.changedTouches[0].clientY) - startY;
+
+            if (deltaX > THRESHOLD) {
+                // Swiped right (Like)
+                performAction('like');
+                animateSwipe('right', fetchNextProfile);
+            } else if (deltaX < -THRESHOLD) {
+                // Swiped left (Dislike)
+                performAction('dislike');
+                animateSwipe('left', fetchNextProfile);
+            } else {
+                // Not a significant swipe, reset
+                resetCard();
+            }
+        }
+
+        // --- AJAX Function for Like/Dislike ---
+        async function performAction(action) {
+            if (!profileCard) return; // Ensure profileCard exists before trying to get its dataset
+            const username = profileCard.dataset.username;
+            if (!username) {
+                console.error("Profile card has no username data attribute.");
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const response = await fetch(`{% url 'like_user' username='DUMMY' %}`.replace('DUMMY', username), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest', // Important for Django's is_ajax() check
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: `action=${action}` // 'like' or 'dislike'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json(); // like_view now returns JSON for AJAX
+                console.log('Server response:', data);
+                // Display messages based on JSON response, not Django messages framework in this context
+                if (data.status === 'matched') {
+                    // Implement a simple visual notification for a match
+                    alert("It's a Match! 🎉 You can now message them from your Matches page.");
+                } else if (data.message) {
+                    // You could display other messages, but less critical for swipe UI
+                    console.log(data.message);
+                }
+
+            } catch (error) {
+                console.error('Error performing action:', error);
+                // Optionally show an error message to the user
+            }
+        }
+
+        // --- Fetch Next Profile HTML Partial via AJAX ---
+        async function fetchNextProfile() {
+            try {
+                const response = await fetch(`{% url 'swipe_profiles' %}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest' // Identify as AJAX request
+                    }
+                });
+
+                if (!response.ok) {
+                    // This handles server-side errors, not "no more profiles"
+                    console.error('Error fetching next profile:', response.statusText);
+                    profileCardContainer.innerHTML = `
+                        <div class="text-center text-lg text-gray-600 text-red-500 w-full">
+                            Error loading profiles. Please refresh.
+                            <div class="mt-4">
+                                <button onclick="location.reload()" class="btn btn-secondary">Refresh Page</button>
+                            </div>
+                        </div>
+                    `;
+                    if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none';
+                    return;
+                }
+
+                const newHtml = await response.text(); // This is the HTML from profile_card_partial.html
+                
+                // Directly replace the content of the profile card container
+                profileCardContainer.innerHTML = newHtml;
+                
+                // Re-bind event listeners for the newly loaded card and buttons
+                rebindEventListeners();
+
+                // Check if a new profile card was actually loaded (i.e., not the "no more profiles" message)
+                const newlyLoadedProfileCard = document.getElementById('profile-card');
+                if (!newlyLoadedProfileCard && swipeButtonsDiv) {
+                    swipeButtonsDiv.style.display = 'none'; // Hide buttons if no new card
+                } else if (swipeButtonsDiv) {
+                     swipeButtonsDiv.style.display = 'flex'; // Show buttons if a new card is loaded
+                }
+
+            } catch (error) {
+                console.error('Error fetching next profile:', error);
+                profileCardContainer.innerHTML = `
+                    <div class="text-center text-lg text-gray-600 text-red-500 w-full">
+                        An unexpected error occurred. Please refresh.
+                        <div class="mt-4">
+                            <button onclick="location.reload()" class="btn btn-secondary">Refresh Page</button>
+                        </div>
+                    </div>
+                `;
+                if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none';
+            }
+        }
+    });
+</script>
+{% endblock extra_js %}

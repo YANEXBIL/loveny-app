@@ -1,0 +1,11 @@
+<!-- accounts/templates/accounts/partials/message.html -->
+<div class="flex items-start gap-3 p-2 rounded-lg {% if message.sender == current_user %}bg-blue-100 self-end ml-auto flex-row-reverse{% else %}bg-gray-100{% endif %}">
+    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-sm">
+        {{ message.sender.username.0|upper }}
+    </div>
+    <div>
+        <p class="font-semibold text-sm {% if message.sender == current_user %}text-blue-700{% else %}text-gray-800{% endif %}">{{ message.sender.username }}</p>
+        <p class="text-gray-900 text-base break-words">{{ message.content }}</p>
+        <p class="text-xs text-gray-500 text-right mt-1">{{ message.timestamp|date:"H:i" }}</p>
+    </div>
+</div>

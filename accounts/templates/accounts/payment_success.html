@@ -1,0 +1,20 @@
+<!-- templates/accounts/payment_success.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}Payment Successful!{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center px-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+        <div class="text-green-500 text-6xl mb-6">✅</div>
+        <h2 class="text-4xl font-extrabold text-gray-900 mb-4">Payment Successful!</h2>
+        <p class="text-lg text-gray-700 mb-8">
+            Thank you for your purchase. Your premium features are now active!
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{% url 'profile' %}" class="btn btn-primary">Go to My Profile</a>
+            <a href="{% url 'browse_profiles' %}" class="btn btn-secondary">Browse Matches</a>
+        </div>
+    </div>
+</div>
+{% endblock content %}

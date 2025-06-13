@@ -1,0 +1,47 @@
+<!-- templates/accounts/subscription_plans.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}Subscription Plans{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] p-4">
+    <h1 class="text-4xl font-extrabold text-gray-900 mb-8 text-center">Unlock Premium Features</h1>
+    <p class="text-lg text-gray-600 mb-12 text-center max-w-2xl">
+        Choose a plan that suits your needs and enhance your LOVENY experience.
+    </p>
+
+    {% if plans %}
+    {# Using flexbox to control wrapping and alignment #}
+    {# 'gap-8' creates 2rem (32px) gap between items #}
+    <div class="flex flex-wrap justify-center gap-8 w-full max-w-5xl"> 
+        {% for plan in plans %}
+        {# Each card now defaults to 50% width minus half the gap, ensuring two columns even on small phones #}
+        {# On large screens, it switches to 33.333% width minus two-thirds of the gap for three columns #}
+        <div class="w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.333rem)] bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out border-t-4 {% if forloop.counter == 2 %}border-pink-500{% else %}border-purple-500{% endif %}">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">{{ plan.name }}</h2>
+            <p class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 mb-6">
+                ₦{{ plan.price|floatformat:0 }}<span class="text-xl text-gray-500">/{{ plan.duration_days }} days</span>
+            </p>
+            <p class="text-gray-700 mb-6 leading-relaxed flex-grow">
+                {{ plan.description|default:"No description available." }}
+            </p>
+            <ul class="text-left text-gray-800 space-y-2 mb-8 w-full">
+                <li class="flex items-center"><span class="text-green-500 mr-2">✔️</span> Send unlimited messages</li>
+                <li class="flex items-center"><span class="text-green-500 mr-2">✔️</span> See who liked you</li>
+                <li class="flex items-center"><span class="text-green-500 mr-2">✔️</span> Ad-free experience</li>
+                {% if plan.name == 'Premium' %}
+                    <li class="flex items-center"><span class="text-green-500 mr-2">✔️</span> Advanced filters</li>
+                    <li class="flex items-center"><span class="text-green-500 mr-2">✔️</span> Priority support</li>
+                {% endif %}
+            </ul>
+            <a href="{% url 'initiate_payment' plan.id %}" class="btn btn-primary w-full text-lg">
+                Choose Plan
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center text-lg text-gray-600 mt-12">No subscription plans available at the moment. Please check back later!</p>
+    {% endif %}
+</div>
+{% endblock content %}

@@ -1,0 +1,35 @@
+<!-- templates/accounts/login.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}Login to LOVENY{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+        <h2 class="text-4xl font-extrabold text-center text-gray-900 mb-8">Login</h2>
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %} {# Django's security token to prevent Cross-Site Request Forgery #}
+            <div class="mb-5">
+                <label for="{{ form.username.id_for_label }}" class="block text-gray-700 text-sm font-medium mb-2">Username</label>
+                {{ form.username }} {# Renders the username input field #}
+            </div>
+            <div class="mb-6">
+                <label for="{{ form.password.id_for_label }}" class="block text-gray-700 text-sm font-medium mb-2">Password</label>
+                {{ form.password }} {# Renders the password input field #}
+            </div>
+            {% if form.errors %}
+                {# Display form-level errors (e.g., invalid credentials) #}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
+                    <strong class="font-bold">Oops!</strong>
+                    <span class="block sm:inline">Your username and password didn't match. Please try again.</span>
+                </div>
+            {% endif %}
+            <input type="hidden" name="next" value="{{ next }}"> {# Hidden input to redirect after login #}
+            <button type="submit" class="btn btn-primary w-full text-lg">Log In</button>
+        </form>
+        <p class="text-center text-gray-600 text-sm mt-6">
+            Don't have an account? <a href="{% url 'register' %}" class="text-pink-500 hover:underline font-semibold">Sign Up Here</a>
+        </p>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,127 @@
+<!-- templates/accounts/chat_room.html -->
+{% extends 'accounts/base.html' %}
+
+{% block title %}Chat with {{ other_user.username }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-200px)] bg-white rounded-2xl shadow-xl overflow-hidden">
+    <!-- Chat Header -->
+    <div class="p-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white flex items-center justify-between rounded-t-2xl">
+        <h2 class="text-xl font-bold">Chat with {{ other_user.username }}</h2>
+        <a href="{% url 'matches' %}" class="text-white hover:text-purple-200 text-sm">Back to Matches</a>
+    </div>
+
+    <!-- Chat Messages Area -->
+    <div id="chat-log" class="flex-grow p-4 overflow-y-auto flex flex-col space-y-3">
+        {% for message in messages %}
+            {% include 'accounts/partials/message.html' with message=message current_user=request.user %}
+        {% endfor %}
+    </div>
+
+    <!-- Message Input Area -->
+    <div class="p-4 border-t border-gray-200 flex items-center">
+        <input type="text" id="chat-message-input" placeholder="Type your message..."
+               class="flex-grow mr-3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400">
+        <button id="chat-message-submit" class="btn btn-primary px-6 py-3">Send</button>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Define the otherUsername using a Django template variable directly.
+    // When rendered by Django (outside of Canvas preview), this will correctly become a string.
+    const otherUsername = "{{ other_user.username }}";
+    console.log("Rendered otherUsername (from Django context):", otherUsername);
+
+    // Ensure the DOM is fully loaded before trying to access elements
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get relevant DOM elements
+        const chatLog = document.querySelector('#chat-log');
+        const messageInput = document.querySelector('#chat-message-input');
+        const messageSubmit = document.querySelector('#chat-message-submit');
+
+        // Basic check if elements exist
+        if (!chatLog || !messageInput || !messageSubmit) {
+            console.error("Chat elements not found! Check IDs in HTML.");
+            return;
+        }
+
+        // Scroll to the bottom of the chat log on page load
+        chatLog.scrollTop = chatLog.scrollHeight;
+
+        // Construct the WebSocket URL relative to the current page's host and port.
+        // For local development with Daphne, you typically access via http://127.0.0.1:8000/
+        // so window.location.protocol will be 'http:' and it will correctly use 'ws://'.
+        // This logic is designed for direct browser access.
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = wsProtocol + window.location.host + '/ws/chat/' + otherUsername + '/';
+
+        console.log("Page protocol:", window.location.protocol);
+        console.log("Attempting WebSocket connection to:", wsUrl);
+
+        const chatSocket = new WebSocket(wsUrl);
+
+        // Event listener for WebSocket connection opening
+        chatSocket.onopen = function(e) {
+            console.log("WebSocket connection established!", e);
+        };
+
+        // Event listener for incoming messages from the WebSocket
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const messageHtml = data['message_html'];
+            
+            chatLog.innerHTML += messageHtml;
+            chatLog.scrollTop = chatLog.scrollHeight;
+        };
+
+        // Event listener for WebSocket connection closing
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
+            // Inform user if connection is lost
+        };
+
+        // Event listener for WebSocket errors
+        chatSocket.onerror = function(e) {
+            console.error('WebSocket Error:', e);
+        };
+
+        // Function to send a message when Enter key is pressed or Send button is clicked
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            console.log("Attempting to send message:", message);
+            console.log("WebSocket readyState:", chatSocket.readyState);
+
+            if (message) {
+                // Check if WebSocket connection is OPEN (readyState 1) before sending
+                if (chatSocket.readyState === WebSocket.OPEN) {
+                    chatSocket.send(JSON.stringify({
+                        'message': message
+                    }));
+                    messageInput.value = ''; // Clear the input field
+                    console.log("Message sent via WebSocket.");
+                } else {
+                    console.error("WebSocket not open. ReadyState:", chatSocket.readyState);
+                    console.error("Please ensure the Daphne server is running and the WebSocket connection is stable.");
+                }
+            } else {
+                console.log("Message is empty, not sending.");
+            }
+        }
+
+        // Event listener for Enter key press in the input field
+        messageInput.focus();
+        messageInput.onkeyup = function(e) {
+            if (e.keyCode === 13) {
+                sendMessage();
+            }
+        };
+
+        // Event listener for Send button click
+        messageSubmit.onclick = function(e) {
+            sendMessage();
+        };
+    }); // End of DOMContentLoaded
+</script>
+{% endblock extra_js %}
