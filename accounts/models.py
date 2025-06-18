@@ -123,16 +123,15 @@ class Like(models.Model):
             liked_user=self.liker
         ).exists()
 
-# Removed: Conversation and Message models
-# They are no longer needed for WhatsApp integration.
 
-
-# New Models for Subscription and Payments (Remain the same)
+# New Models for Subscription and Payments
 class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=100, unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_days = models.IntegerField(help_text="Duration of the plan in days")
     description = models.TextField(blank=True, null=True)
+    # New JSONField for features
+    features = models.JSONField(default=list, blank=True, help_text="List of features included in this plan (e.g., ['Ad-free experience', 'Send unlimited messages'])")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

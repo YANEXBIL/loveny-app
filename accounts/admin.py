@@ -26,25 +26,18 @@ class LikeAdmin(admin.ModelAdmin):
     search_fields = ('liker__username', 'liked_user__username')
 
 
-# Conversation and Message models are removed, so we remove their registration:
-# @admin.register(Conversation)
-# class ConversationAdmin(admin.ModelAdmin):
-#     list_display = ('user1', 'user2', 'created_at')
-#     search_fields = ('user1__username', 'user2__username')
-
-
-# @admin.register(Message)
-# class MessageAdmin(admin.ModelAdmin):
-#     list_display = ('conversation', 'sender', 'timestamp', 'content')
-#     list_filter = ('timestamp', 'sender__username')
-#     search_fields = ('content', 'sender__username')
-
-
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'duration_days', 'is_active', 'created_at')
+    list_display = ('name', 'price', 'duration_days', 'is_active', 'created_at', 'get_features_display')
     list_filter = ('is_active',)
     search_fields = ('name',)
+    # Add 'features' to the fields that can be edited in the admin
+    fields = ('name', 'price', 'duration_days', 'description', 'features', 'is_active')
+
+    def get_features_display(self, obj):
+        """Displays features as a comma-separated string for list_display."""
+        return ", ".join(obj.features) if obj.features else "No features"
+    get_features_display.short_description = "Features"
 
 
 @admin.register(UserSubscription)
