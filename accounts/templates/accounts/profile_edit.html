@@ -1,6 +1,6 @@
 <!-- accounts/templates/accounts/profile_edit.html -->
 {% extends 'accounts/base.html' %}
-{# IMPORTANT: No {% load tailwind_filters %} here as it's removed and caused errors #}
+{# IMPORTANT: NO {% load tailwind_filters %} HERE - it's removed and caused errors #}
 
 {% block title %}Edit Profile{% endblock %}
 
@@ -109,7 +109,7 @@
                         <img src="{{ request.user.profile_picture.url }}" alt="Current Profile Picture" class="w-24 h-24 object-cover rounded-full border-2 border-gray-300">
                     </div>
                 {% endif %}
-                {{ form.profile_picture }}
+                {{ form.profile_picture }} {# This is the standard file input field #}
                 {% for error in form.profile_picture.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
