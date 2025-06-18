@@ -1,4 +1,4 @@
-<!-- templates/accounts/chat_room.html -->
+<!-- accounts/templates/accounts/chat_room.html -->
 {% extends 'accounts/base.html' %}
 
 {% block title %}Chat with {{ other_user.username }}{% endblock %}
@@ -20,7 +20,7 @@
 
     <!-- Message Input Area -->
     <div class="p-4 border-t border-gray-200 flex items-center">
-        <input type="text" id="chat-message-input" placeholder="Type your message..."
+        <input type="text" id="chat-message-input" name="message_content" placeholder="Type your message..."
                class="flex-grow mr-3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400">
         <button id="chat-message-submit" class="btn btn-primary px-6 py-3">Send</button>
     </div>
@@ -29,6 +29,8 @@
 
 {% block extra_js %}
 <script>
+    console.log('>>> chat_room.html script started <<<'); // IMPORTANT DEBUG MESSAGE
+
     // Define the otherUsername using a Django template variable directly.
     // When rendered by Django (outside of Canvas preview), this will correctly become a string.
     const otherUsername = "{{ other_user.username }}";
@@ -44,16 +46,13 @@
         // Basic check if elements exist
         if (!chatLog || !messageInput || !messageSubmit) {
             console.error("Chat elements not found! Check IDs in HTML.");
-            return;
+            return; // Exit if elements are missing
         }
 
         // Scroll to the bottom of the chat log on page load
         chatLog.scrollTop = chatLog.scrollHeight;
 
         // Construct the WebSocket URL relative to the current page's host and port.
-        // For local development with Daphne, you typically access via http://127.0.0.1:8000/
-        // so window.location.protocol will be 'http:' and it will correctly use 'ws://'.
-        // This logic is designed for direct browser access.
         const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const wsUrl = wsProtocol + window.location.host + '/ws/chat/' + otherUsername + '/';
 
@@ -74,12 +73,13 @@
             
             chatLog.innerHTML += messageHtml;
             chatLog.scrollTop = chatLog.scrollHeight;
+            console.log("Received and displayed message via WebSocket.");
         };
 
         // Event listener for WebSocket connection closing
         chatSocket.onclose = function(e) {
             console.error('Chat socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
-            // Inform user if connection is lost
+            // Inform user if connection is lost, maybe try to reconnect
         };
 
         // Event listener for WebSocket errors
@@ -104,6 +104,7 @@
                 } else {
                     console.error("WebSocket not open. ReadyState:", chatSocket.readyState);
                     console.error("Please ensure the Daphne server is running and the WebSocket connection is stable.");
+                    // Provide user feedback, e.g., a temporary message on the UI
                 }
             } else {
                 console.log("Message is empty, not sending.");
@@ -111,9 +112,9 @@
         }
 
         // Event listener for Enter key press in the input field
-        messageInput.focus();
+        messageInput.focus(); // Keep input focused
         messageInput.onkeyup = function(e) {
-            if (e.keyCode === 13) {
+            if (e.keyCode === 13) { // 13 is the keycode for Enter
                 sendMessage();
             }
         };
@@ -122,17 +123,6 @@
         messageSubmit.onclick = function(e) {
             sendMessage();
         };
-
-
-        console.log('>>> chat_room.html script started <<<'); // Add this line
-    // Define the otherUsername using a Django template variable directly.
-    const otherUsername = "{{ other_user.username }}";
-    console.log("Rendered otherUsername (from Django context):", otherUsername);
-
-    // ... rest of your JavaScript code ...
     }); // End of DOMContentLoaded
-  
-    
-
 </script>
 {% endblock extra_js %}
