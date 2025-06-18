@@ -19,7 +19,7 @@
             margin: 0 auto;
             padding: 20px;
         }
-        /* Custom styles for form inputs and buttons (as defined previously) */
+        /* Custom styles for form inputs and buttons */
         input[type="text"], input[type="email"], input[type="password"], input[type="date"], textarea, select {
             width: 100%;
             padding: 0.75rem; /* p-3 */
@@ -55,97 +55,136 @@
         }
         .btn-secondary:hover {
             background-color: #d1d5db; /* hover:bg-gray-300 */
+            color: #1f2937; /* text-gray-800 */
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <header class="bg-white shadow-md py-4 relative z-10"> {# Added relative and z-10 for mobile menu positioning #}
-        <nav class="container flex justify-between items-center">
-            <a href="{% url 'homepage' %}" class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</a>
 
-            <div class="md:hidden">
-                <button id="mobile-menu-button" class="text-gray-700 focus:outline-none focus:text-pink-500">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <ul id="main-navigation" class="hidden md:flex md:space-x-6"> {# hidden by default, flex on md+ #}
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white shadow-xl transform -translate-x-full md:relative md:translate-x-0 md:flex-shrink-0 md:w-auto md:shadow-none transition-transform duration-300 ease-in-out z-50">
+        <div class="p-6">
+            <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 mb-6">LOVENY</h2>
+            <ul class="space-y-4">
                 {% if user.is_authenticated %}
-                    <li><a href="{% url 'profile' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">My Profile</a></li>
-                    <li><a href="{% url 'browse_profiles' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Browse Matches</a></li>
-                    <li><a href="{% url 'swipe_profiles' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Swipe</a></li>
-                    <li><a href="{% url 'matches' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">My Matches</a></li>
+                    <li><a href="{% url 'profile' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">My Profile</a></li>
+                    <li><a href="{% url 'browse_profiles' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Browse Matches</a></li>
+                    <li><a href="{% url 'swipe_profiles' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Swipe</a></li>
+                    <li><a href="{% url 'matches' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">My Matches</a></li>
                     {% if not user.is_premium %}
-                        <li><a href="{% url 'subscription_plans' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Upgrade</a></li>
+                        <li><a href="{% url 'subscription_plans' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Upgrade</a></li>
                     {% endif %}
                     <li>
-                        <form action="{% url 'logout' %}" method="post" class="block py-2 px-4 inline">
+                        <form action="{% url 'logout' %}" method="post" class="inline">
                             {% csrf_token %}
-                            <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer">
+                            <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer text-lg">
                                 Logout
                             </button>
                         </form>
                     </li>
                 {% else %}
-                    <li><a href="{% url 'login' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Login</a></li>
-                    <li><a href="{% url 'register' %}" class="btn btn-primary block py-2 px-4">Sign Up</a></li> {# Added block py-2 px-4 for consistency #}
+                    <li><a href="{% url 'login' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Login</a></li>
+                    <li><a href="{% url 'register' %}" class="btn btn-primary block w-full text-center">Sign Up</a></li>
                 {% endif %}
             </ul>
-        </nav>
-    </header>
-
-    <main class="flex-grow container py-8">
-        {% if messages %}
-            <ul class="messages mb-4">
-                {% for message in messages %}
-                    <li {% if message.tags %} class="{{ message.tags }} p-3 rounded-md text-sm {% if 'success' in message.tags %}bg-green-100 text-green-700{% elif 'error' in message.tags %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}"{% endif %}>
-                        {{ message }}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        {% block content %}
-        {% endblock content %}
-    </main>
-
-    <footer class="bg-gray-800 text-white py-6 mt-auto">
-        <div class="container text-center text-sm">
-            &copy; 2025 LOVENY. All rights reserved.
         </div>
-    </footer>
+    </div>
+
+    <div id="overlay" class="fixed inset-0 bg-black opacity-0 transition-opacity duration-300 ease-in-out z-40 hidden"></div>
+
+    <div class="flex-grow flex flex-col">
+        <header class="bg-white shadow-md py-4 z-20"> {# Increased z-index to be above content #}
+            <nav class="container flex justify-between items-center">
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-gray-700 focus:outline-none focus:text-pink-500">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <ul class="hidden md:flex md:space-x-6">
+                    {% if user.is_authenticated %}
+                        <li><a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Profile</a></li>
+                        <li><a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Browse Matches</a></li>
+                        <li><a href="{% url 'swipe_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Swipe</a></li>
+                        <li><a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Matches</a></li>
+                        {% if not user.is_premium %}
+                            <li><a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-500 font-medium">Upgrade</a></li>
+                        {% endif %}
+                        <li>
+                            <form action="{% url 'logout' %}" method="post" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer">
+                                    Logout
+                                </button>
+                            </form>
+                        </li>
+                    {% else %}
+                        <li><a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-500 font-medium">Login</a></li>
+                        <li><a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </header>
+
+        <main class="flex-grow container py-8">
+            {% if messages %}
+                <ul class="messages mb-4">
+                    {% for message in messages %}
+                        <li {% if message.tags %} class="{{ message.tags }} p-3 rounded-md text-sm {% if 'success' in message.tags %}bg-green-100 text-green-700{% elif 'error' in message.tags %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}"{% endif %}>
+                            {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% block content %}
+            {% endblock content %}
+        </main>
+
+        <footer class="bg-gray-800 text-white py-6 mt-auto">
+            <div class="container text-center text-sm">
+                &copy; 2025 LOVENY. All rights reserved.
+            </div>
+        </footer>
+    </div>
 
     <script>
-        // JavaScript to toggle the mobile menu
         const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mainNavigation = document.getElementById('main-navigation');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
 
-        if (mobileMenuButton && mainNavigation) {
+        if (mobileMenuButton && sidebar && overlay) {
             mobileMenuButton.addEventListener('click', () => {
-                mainNavigation.classList.toggle('hidden'); // Toggles visibility
-                
-                // Add/remove mobile-specific styling for the menu when active
-                mainNavigation.classList.toggle('flex');
-                mainNavigation.classList.toggle('flex-col');
-                mainNavigation.classList.toggle('absolute');
-                mainNavigation.classList.toggle('top-full'); // Position right below the header
-                mainNavigation.classList.toggle('inset-x-0'); // Stretch across full width
-                mainNavigation.classList.toggle('bg-white');
-                mainNavigation.classList.toggle('shadow-lg');
-                mainNavigation.classList.toggle('items-center'); // Center items horizontally
-                mainNavigation.classList.toggle('py-4'); // Vertical padding for the menu dropdown
-                mainNavigation.classList.toggle('space-y-4'); // Vertical spacing between links
-                mainNavigation.classList.toggle('space-x-0'); // Remove horizontal spacing for links
-                
-                // For direct links inside the menu
-                mainNavigation.querySelectorAll('a').forEach(link => {
-                    link.classList.toggle('w-full'); // Make links full width
-                    link.classList.toggle('text-center'); // Center link text
+                sidebar.classList.toggle('-translate-x-full'); // Slide sidebar in/out
+                overlay.classList.toggle('hidden'); // Show/hide overlay
+                overlay.classList.toggle('opacity-0'); // Transition opacity
+                overlay.classList.toggle('opacity-50'); // Set opacity when visible
+            });
+
+            overlay.addEventListener('click', () => {
+                sidebar.classList.add('-translate-x-full'); // Slide sidebar out
+                overlay.classList.add('hidden'); // Hide overlay
+                overlay.classList.add('opacity-0'); // Reset opacity
+                overlay.classList.remove('opacity-50');
+            });
+            
+            // Close sidebar when a navigation link is clicked (optional, but good UX)
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                    overlay.classList.add('opacity-0');
+                    overlay.classList.remove('opacity-50');
                 });
-                mainNavigation.querySelectorAll('form').forEach(form => {
-                    form.classList.toggle('w-full'); // Make logout form full width
-                    form.classList.toggle('text-center'); // Center logout button text
+            });
+            sidebar.querySelectorAll('form button').forEach(button => {
+                button.addEventListener('click', () => {
+                    // Do not close immediately for form submission, let it naturally navigate
+                    // You might want to remove this if navigation doesn't happen quickly
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                    overlay.classList.add('opacity-0');
+                    overlay.classList.remove('opacity-50');
                 });
             });
         }
