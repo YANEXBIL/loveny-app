@@ -122,6 +122,17 @@
         messageSubmit.onclick = function(e) {
             sendMessage();
         };
+
+
+        console.log('>>> chat_room.html script started <<<'); // Add this line
+    // Define the otherUsername using a Django template variable directly.
+    const otherUsername = "{{ other_user.username }}";
+    console.log("Rendered otherUsername (from Django context):", otherUsername);
+
+    // ... rest of your JavaScript code ...
     }); // End of DOMContentLoaded
+  
+    
+
 </script>
 {% endblock extra_js %}
