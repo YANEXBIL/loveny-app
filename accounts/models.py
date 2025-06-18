@@ -4,7 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import os
 from datetime import date
-from django.utils import timezone # IMPORT THIS LINE FOR MIGRATIONS DEFAULT
+from django.utils import timezone
 
 
 # Define choices for various profile fields
@@ -38,6 +38,7 @@ class UserProfile(AbstractUser):
     bio = models.TextField(max_length=500, blank=True, null=True, help_text="Tell us about yourself.")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
+    # The 'profile_picture' field will now act as the 'main' or 'primary' picture
     profile_picture = models.ImageField(
         upload_to='profile_pics/',
         blank=True,
@@ -46,8 +47,7 @@ class UserProfile(AbstractUser):
     )
     location = models.CharField(max_length=100, blank=True, null=True)
     
-    # New: Phone number for WhatsApp contact
-    # It's important to store this with country code (e.g., +2348012345678)
+    # Phone number for WhatsApp contact
     phone_number = models.CharField(
         max_length=20,
         blank=True,
@@ -84,6 +84,30 @@ class UserProfile(AbstractUser):
                   ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
             return age
         return None
+
+# New Model for additional profile images
+class ProfileImage(models.Model):
+    """
+    Stores additional images for a user's profile.
+    """
+    user_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name='additional_images', # Allows accessing images via user.additional_images.all()
+        help_text="The user profile this image belongs to."
+    )
+    image = models.ImageField(
+        upload_to='profile_gallery/', # A new directory for gallery images
+        help_text="Additional profile image."
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at'] # Order images by upload time
+
+    def __str__(self):
+        return f"Image for {self.user_profile.username} (ID: {self.id})"
+
 
 # Model: Like (Remains the same)
 class Like(models.Model):
@@ -124,13 +148,12 @@ class Like(models.Model):
         ).exists()
 
 
-# New Models for Subscription and Payments
+# Models for Subscription and Payments (Remain the same)
 class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=100, unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_days = models.IntegerField(help_text="Duration of the plan in days")
     description = models.TextField(blank=True, null=True)
-    # New JSONField for features
     features = models.JSONField(default=list, blank=True, help_text="List of features included in this plan (e.g., ['Ad-free experience', 'Send unlimited messages'])")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

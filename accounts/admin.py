@@ -2,11 +2,16 @@
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-# Import only the models that actually exist in your models.py
-from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction 
+from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction, ProfileImage
 
 
-# Register your custom UserProfile model with the admin site
+# Inline admin for ProfileImage to manage them directly from the UserProfile admin page
+class ProfileImageInline(admin.TabularInline): # Or admin.StackedInline for a different layout
+    model = ProfileImage
+    extra = 1 # Number of empty forms to display
+    fields = ('image',) # Only need to display the image field
+
+
 @admin.register(UserProfile)
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'is_staff', 'is_premium', 'user_type', 'gender', 'phone_number')
@@ -16,9 +21,10 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         (None, {'fields': ('user_type', 'gender', 'date_of_birth', 'location', 'phone_number')}),
     )
+    # Add the inline for ProfileImage
+    inlines = [ProfileImageInline]
 
 
-# Register other models with the admin site
 @admin.register(Like)
 class LikeAdmin(admin.ModelAdmin):
     list_display = ('liker', 'liked_user', 'timestamp', 'is_match')
@@ -31,11 +37,9 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'price', 'duration_days', 'is_active', 'created_at', 'get_features_display')
     list_filter = ('is_active',)
     search_fields = ('name',)
-    # Add 'features' to the fields that can be edited in the admin
     fields = ('name', 'price', 'duration_days', 'description', 'features', 'is_active')
 
     def get_features_display(self, obj):
-        """Displays features as a comma-separated string for list_display."""
         return ", ".join(obj.features) if obj.features else "No features"
     get_features_display.short_description = "Features"
 
@@ -53,3 +57,11 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_filter = ('status', 'plan')
     search_fields = ('user__username', 'reference')
     readonly_fields = ('gateway_response',)
+
+# Register ProfileImage directly if you also want a top-level admin for it
+@admin.register(ProfileImage)
+class ProfileImageAdmin(admin.ModelAdmin):
+    list_display = ('user_profile', 'image', 'uploaded_at')
+    list_filter = ('uploaded_at', 'user_profile__username')
+    search_fields = ('user_profile__username',)
+    raw_id_fields = ('user_profile',) # For easier selection of user_profile in admin
