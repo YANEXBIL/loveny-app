@@ -99,7 +99,7 @@ def browse_profiles_view(request):
     Profiles are filtered based on the current user's 'user_type'.
     """
     current_user = request.user
-    
+
     # Start with all profiles except the current user's
     other_profiles = UserProfile.objects.exclude(id=current_user.id)
 
@@ -124,7 +124,7 @@ def browse_profiles_view(request):
     for profile in other_profiles:
         # Check if the current user has liked this profile
         has_liked = Like.objects.filter(liker=current_user, liked_user=profile).exists()
-        
+
         # Check if there is a mutual match
         is_matched = Like.objects.filter(
             Q(liker=current_user, liked_user=profile) & Q(liker=profile, liked_user=current_user)
@@ -185,7 +185,7 @@ def like_view(request, username):
         # Prevent a user from liking themselves
         if liker == liked_user:
             messages.error(request, "You cannot like your own profile!")
-            return redirect('browse_profiles') 
+            return redirect('browse_profiles')
 
         # Check if a like already exists from liker to liked_user
         like_instance_query = Like.objects.filter(liker=liker, liked_user=liked_user)
@@ -196,23 +196,23 @@ def like_view(request, username):
             status = 'unliked'
             messages.info(request, f'You unliked {liked_user.username}.')
             # No longer matched if a like is removed
-            is_currently_matched = False 
+            is_currently_matched = False
         else:
             # If no like exists, create one
             Like.objects.create(liker=liker, liked_user=liked_user)
             status = 'liked'
             messages.success(request, f'You liked {liked_user.username}.')
-            
+
             # After creating a like, check if the liked_user has also liked the liker
             is_currently_matched = Like.objects.filter(liker=liked_user, liked_user=liker).exists()
             if is_currently_matched:
                 status = 'matched'
                 messages.success(request, f'It\'s a MATCH with {liked_user.username}!')
-        
+
         # For simplicity, we are redirecting back to the browse page.
         # In a real app, you might use JavaScript to update the UI without a full page reload.
         return redirect('browse_profiles') # Redirect back to the browse page
-    
+
     # If the request is not a POST (e.g., direct access), redirect to browse
     return redirect('browse_profiles')
 
@@ -224,13 +224,13 @@ def matches_view(request):
     A mutual match exists when user A likes user B AND user B likes user A.
     """
     current_user = request.user
-    
+
     # Find all 'Like' objects where current_user is the liker
     likes_given = current_user.likes_given.all() # Use .all() to get queryset
-    
+
     # Find all 'Like' objects where current_user is the liked_user
     likes_received = current_user.likes_received.all() # Use .all() to get queryset
-    
+
     # Get the IDs of users who liked the current user AND were liked by the current user
     mutual_match_ids = set()
     for like_g in likes_given:
@@ -385,7 +385,11 @@ def initiate_payment_view(request, plan_id):
     user = request.user
 
     # Paystack requires amount in kobo (NGN * 100)
-    amount_kobo = int(plan.price * 100) 
+    amount_kobo = int(plan.price * 100)
+
+    # --- DEBUGGING: Print the calculated amount and user email ---
+    print(f"DEBUG: Initializing Paystack payment for user: {user.email}, amount: {plan.price} NGN ({amount_kobo} kobo)")
+    # --- END DEBUGGING ---
 
     # Prepare Paystack API request for transaction initialization
     url = "https://api.paystack.co/transaction/initialize"
@@ -394,23 +398,30 @@ def initiate_payment_view(request, plan_id):
         "Content-Type": "application/json"
     }
     # Generate a unique reference for the transaction
-    reference = f"loveny_{user.id}_{plan.id}_{os.urandom(4).hex()}" 
+    reference = f"loveny_{user.id}_{plan.id}_{os.urandom(4).hex()}"
 
     payload = {
         "email": user.email,
         "amount": amount_kobo,
         "reference": reference,
-        "callback_url": request.build_absolute_uri(reverse_lazy('paystack_callback')), 
-        "metadata": { 
+        "callback_url": request.build_absolute_uri(reverse_lazy('paystack_callback')),
+        # --- ADD CURRENCY EXPLICITLY ---
+        "currency": "NGN", # Assuming NGN (Nigerian Naira) based on your timezone
+        # --- END ADDITION ---
+        "metadata": {
             "user_id": user.id,
             "plan_id": plan.id,
             "plan_name": plan.name
         }
     }
 
+    # --- DEBUGGING: Print the full payload being sent ---
+    print(f"DEBUG: Paystack request payload: {json.dumps(payload, indent=2)}")
+    # --- END DEBUGGING ---
+
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status() 
+        response.raise_for_status()
         response_data = response.json()
 
         if response_data['status']:
@@ -427,13 +438,22 @@ def initiate_payment_view(request, plan_id):
             return redirect(response_data['data']['authorization_url'])
         else:
             # Handle Paystack API error
-            messages.error(request, f"Payment initiation failed: {response_data.get('message', 'Unknown error from Paystack')}") 
+            error_message = response_data.get('message', 'Unknown error from Paystack')
+            messages.error(request, f"Payment initiation failed: {error_message}")
+            # --- DEBUGGING: Log Paystack's specific error message ---
+            print(f"DEBUG: Paystack API error response: {response_data}")
+            # --- END DEBUGGING ---
             return redirect('subscription_plans')
     except requests.exceptions.RequestException as e:
-        messages.error(request, f"Error communicating with Paystack: {e}") 
+        messages.error(request, f"Error communicating with Paystack: {e}")
+        # --- DEBUGGING: Log the full response text if available ---
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"DEBUG: Full Paystack error response text: {e.response.text}")
+        # --- END DEBUGGING ---
         return redirect('subscription_plans')
     except Exception as e:
-        messages.error(request, f"An unexpected error occurred during payment initiation: {e}") 
+        messages.error(request, f"An unexpected error occurred during payment initiation: {e}")
+        print(f"DEBUG: Unexpected error: {e}") # Further debug
         return redirect('subscription_plans')
 
 
@@ -466,12 +486,12 @@ def paystack_callback_view(request):
             # Update user's subscription
             user = transaction.user
             plan = transaction.plan
-            
+
             try:
                 user_subscription = UserSubscription.objects.get(user=user)
                 user_subscription.plan = plan
                 user_subscription.start_date = transaction.created_at
-                user_subscription.end_date = transaction.created_at + timedelta(days=plan.duration_days) 
+                user_subscription.end_date = transaction.created_at + timedelta(days=plan.duration_days)
                 user_subscription.is_active = True
                 user_subscription.save()
                 messages.info(request, f"Existing subscription updated to {plan.name}.")
@@ -485,11 +505,11 @@ def paystack_callback_view(request):
                 )
                 messages.info(request, f"New subscription created for {plan.name}.")
 
-            user.is_premium = True 
+            user.is_premium = True
             user.save()
 
             messages.success(request, "Payment successful! Your subscription is now active.")
-            return redirect('profile') 
+            return redirect('profile')
         else:
             transaction = get_object_or_404(PaymentTransaction, reference=reference)
             transaction.status = 'failed'
