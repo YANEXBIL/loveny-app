@@ -1,6 +1,6 @@
 <!-- accounts/templates/accounts/profile_edit.html -->
 {% extends 'accounts/base.html' %}
-{% load tailwind_filters %}
+{# REMOVED: {% load tailwind_filters %} as it's not available #}
 
 {% block title %}Edit Profile{% endblock %}
 
@@ -28,14 +28,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.first_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">First Name</label>
-                    {{ form.first_name|field_classes:"form-input" }}
+                    {{ form.first_name.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.first_name.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.last_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
-                    {{ form.last_name|field_classes:"form-input" }}
+                    {{ form.last_name.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.last_name.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -45,7 +45,7 @@
             {# Other Profile Fields #}
             <div>
                 <label for="{{ form.bio.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Bio</label>
-                {{ form.bio|field_classes:"form-textarea" }}
+                {{ form.bio.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm', 'rows': 4}) }}
                 {% for error in form.bio.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
@@ -54,14 +54,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.gender.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Gender</label>
-                    {{ form.gender|field_classes:"form-select" }}
+                    {{ form.gender.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.gender.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.date_of_birth.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Date of Birth</label>
-                    {{ form.date_of_birth|field_classes:"form-input" }}
+                    {{ form.date_of_birth.as_widget(attrs={'type': 'date', 'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.date_of_birth.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -70,7 +70,7 @@
 
             <div>
                 <label for="{{ form.location.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Location</label>
-                {{ form.location|field_classes:"form-input" }}
+                {{ form.location.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                 {% for error in form.location.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
@@ -78,7 +78,7 @@
 
             <div>
                 <label for="{{ form.phone_number.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">WhatsApp Phone Number</label>
-                {{ form.phone_number|field_classes:"form-input" }}
+                {{ form.phone_number.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                 <p class="text-gray-500 text-xs italic mt-1">Include country code (e.g., +2348012345678)</p>
                 {% for error in form.phone_number.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
@@ -88,14 +88,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.user_type.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">User Type</label>
-                    {{ form.user_type|field_classes:"form-select" }}
+                    {{ form.user_type.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.user_type.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.seeking.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Seeking</label>
-                    {{ form.seeking|field_classes:"form-select" }}
+                    {{ form.seeking.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
                     {% for error in form.seeking.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -103,7 +103,7 @@
             </div>
 
             <div>
-                <label for="{{ form.profile_picture.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Profile Picture</label>
+                <label for="{{ form.profile_picture.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Profile Picture (Main)</label>
                 {% if request.user.profile_picture %}
                     <div class="mb-4">
                         <img src="{{ request.user.profile_picture.url }}" alt="Current Profile Picture" class="w-24 h-24 object-cover rounded-full border-2 border-gray-300">

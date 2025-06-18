@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts', # Your custom accounts app
+    'accounts', 
+    'tailwind_filters', # <-- Ensure this line is present
 ]
 
 MIDDLEWARE = [
