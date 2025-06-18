@@ -1,4 +1,4 @@
-<!-- templates/accounts/other_profile_detail.html -->
+<!-- accounts/templates/accounts/other_profile_detail.html -->
 {% extends 'accounts/base.html' %}
 
 {% block title %}{{ profile.username }}'s Profile{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4">
     <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8">
-        <div class="flex-shrink-0 relative"> {# Added relative for badge positioning #}
+        <div class="flex-shrink-0 relative">
             {% if profile.profile_picture %}
                 <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
                      class="w-48 h-48 object-cover rounded-full border-4 border-pink-400 shadow-md">
@@ -17,7 +17,6 @@
             {% endif %}
 
             {% if profile.is_premium %}
-                {# VIP Badge #}
                 <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
                     VIP
                 </span>
@@ -44,6 +43,10 @@
                 {% if profile.seeking %}
                     <p class="flex items-center"><strong class="w-24 text-gray-600">Seeking:</strong> {{ profile.get_seeking_display }}</p>
                 {% endif %}
+                {# Optional: Display phone number if you want it visible #}
+                {% if profile.phone_number %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">WhatsApp:</strong> {{ profile.phone_number }}</p>
+                {% endif %}
             </div>
 
             {% if profile.bio %}
@@ -54,16 +57,23 @@
             {% endif %}
 
             <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                {% if is_matched %}
-                    <span class="btn bg-green-500 text-white cursor-default">Matched! 🎉</span>
-                    <a href="{% url 'matches' %}" class="btn btn-secondary">Go to Matches</a>
+                {# Display Like/Unlike button based on status #}
+                <form action="{% url 'like_user' username=profile.username %}" method="post" class="inline-block">
+                    {% csrf_token %}
+                    <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
+                        {% if has_liked %}Unlike{% else %}Like{% endif %}
+                    </button>
+                </form>
+
+                {# Message on WhatsApp button - only if the other user has provided a phone number #}
+                {% if whatsapp_link %}
+                    <a href="{{ whatsapp_link }}" target="_blank" class="btn btn-primary bg-green-500 hover:bg-green-600">
+                        Message on WhatsApp
+                    </a>
                 {% else %}
-                    <form action="{% url 'like_user' username=profile.username %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
-                            {% if has_liked %}Unlike{% else %}Like{% endif %}
-                        </button>
-                    </form>
+                    <button class="btn btn-secondary cursor-not-allowed opacity-70" disabled>
+                        No WhatsApp number
+                    </button>
                 {% endif %}
             </div>
         </div>

@@ -38,19 +38,15 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-
 DEBUG = False # Set to False for production (important for PythonAnywhere)
 
 # Add your PythonAnywhere domain here
-# --- CORRECTED ALLOWED_HOSTS SECTION ---
-# In production, ALLOWED_HOSTS MUST contain your PythonAnywhere domain.
-# We'll explicitly add your domain for now to resolve the 400 error.
-# You can still use the environment variable for more complex setups if needed.
 ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
-# --- END CORRECTED ALLOWED_HOSTS SECTION ---
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne', # Required for Django Channels
-    'channels', # Required for Django Channels
+    'daphne', # Required for Django Channels server
+    'channels', # Required for Django Channels core
+    'channels_redis', # Required for Redis channel layer
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -93,15 +89,22 @@ WSGI_APPLICATION = 'loveny_project.wsgi.application'
 # Django Channels ASGI Application
 ASGI_APPLICATION = 'loveny_project.asgi.application'
 
-# Channels Layer configuration (in-memory for simple setup, Redis for production)
+# Channels Layer configuration (Redis for production)
+# IMPORTANT: You MUST set up a Redis server on PythonAnywhere
+# Go to PythonAnywhere -> Consoles -> 'Start a new Redis server'
+# This will give you a host, port, and password.
+# Replace the placeholder values below with YOUR ACTUAL REDIS DETAILS.
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer', # Simple in-memory channel layer for development/testing
-        # For production, you would typically use Redis:
-        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        # 'CONFIG': {
-        #     "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
-        # },
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            # Replace 'your-redis-username', 'your-redis-password',
+            # 'your-redis-host.pythonanywhere.com', 'your-redis-port'
+            # with the exact details from your PythonAnywhere Redis server.
+            "hosts": [os.environ.get('REDIS_URL', 'redis://your-redis-username:your-redis-password@your-redis-host.pythonanywhere.com:your-redis-port')],
+            # Example for PythonAnywhere:
+            # "hosts": ["redis://yourusername:yourpassword@redis-server.pythonanywhere.com:12345"],
+        },
     },
 }
 

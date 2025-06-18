@@ -1,9 +1,10 @@
 # accounts/models.py
 
 from django.db import models
-from django.contrib.auth.models import AbstractUser # Import AbstractUser
-import os # Import os for default image path
-from datetime import date # IMPORT THIS LINE
+from django.contrib.auth.models import AbstractUser
+import os
+from datetime import date
+from django.utils import timezone # IMPORT THIS LINE FOR MIGRATIONS DEFAULT
 
 
 # Define choices for various profile fields
@@ -31,7 +32,7 @@ USER_TYPE_CHOICES = [
 class UserProfile(AbstractUser):
     """
     Custom UserProfile model extending Django's AbstractUser.
-    This allows us to add custom fields to the default User model.
+    Includes personal and dating-specific fields.
     """
     # Personal Information
     bio = models.TextField(max_length=500, blank=True, null=True, help_text="Tell us about yourself.")
@@ -41,15 +42,24 @@ class UserProfile(AbstractUser):
         upload_to='profile_pics/',
         blank=True,
         null=True,
-        default='profile_pics/default_avatar.png' # Set a default image path
+        default='profile_pics/default_avatar.png'
     )
     location = models.CharField(max_length=100, blank=True, null=True)
+    
+    # New: Phone number for WhatsApp contact
+    # It's important to store this with country code (e.g., +2348012345678)
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Your WhatsApp phone number including country code (e.g., +2348012345678)"
+    )
 
     # Dating/Hookup/Sugar specific fields
     user_type = models.CharField(
         max_length=20,
         choices=USER_TYPE_CHOICES,
-        default='DATING', # Default to general dating
+        default='DATING',
         help_text="Are you looking for dating, hookups, or are you a sugar daddy/mummy?"
     )
     seeking = models.CharField(
@@ -59,12 +69,9 @@ class UserProfile(AbstractUser):
         null=True,
         help_text="Who are you seeking?"
     )
-    is_premium = models.BooleanField(default=False) # New field for premium status
+    is_premium = models.BooleanField(default=False)
 
     def __str__(self):
-        """
-        Returns the username as the string representation of the UserProfile object.
-        """
         return self.username
 
     def get_age(self):
@@ -78,11 +85,10 @@ class UserProfile(AbstractUser):
             return age
         return None
 
-# Model: Like
+# Model: Like (Remains the same)
 class Like(models.Model):
     """
     Represents a 'like' action between two UserProfile instances.
-    A 'like' exists when 'liker' expresses interest in 'liked_user'.
     """
     liker = models.ForeignKey(
         UserProfile,
@@ -102,7 +108,6 @@ class Like(models.Model):
     )
 
     class Meta:
-        # Ensures that one user can only like another user once.
         unique_together = ('liker', 'liked_user')
         ordering = ['-timestamp']
 
@@ -112,95 +117,17 @@ class Like(models.Model):
     def is_match(self):
         """
         Checks if this like creates a mutual match.
-        A match occurs if the liked_user also likes the liker.
         """
         return Like.objects.filter(
             liker=self.liked_user,
             liked_user=self.liker
         ).exists()
 
-# Model: Conversation (for chat)
-class Conversation(models.Model):
-    """
-    Represents a private conversation between two users.
-    Each conversation is unique to a pair of users.
-    """
-    user1 = models.ForeignKey(
-        UserProfile,
-        on_delete=models.CASCADE,
-        related_name='conversations_initiated',
-        help_text="The first participant in the conversation."
-    )
-    user2 = models.ForeignKey(
-        UserProfile,
-        on_delete=models.CASCADE,
-        related_name='conversations_received',
-        help_text="The second participant in the conversation."
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="The date and time when the conversation was initiated."
-    )
-
-    class Meta:
-        # Ensures that there's only one conversation between any two users,
-        # regardless of which user is 'user1' or 'user2'.
-        unique_together = ('user1', 'user2')
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"Conversation between {self.user1.username} and {self.user2.username}"
-
-    @classmethod
-    def get_or_create_conversation(cls, user_a, user_b):
-        """
-        Retrieves an existing conversation between user_a and user_b,
-        or creates a new one if it doesn't exist.
-        Ensures consistent ordering of users (user1 < user2 by ID) to prevent duplicates.
-        """
-        # Ensure user1 always has the smaller ID to maintain unique_together
-        if user_a.id > user_b.id:
-            user_a, user_b = user_b, user_a 
-
-        conversation, created = cls.objects.get_or_create(
-            user1=user_a,
-            user2=user_b,
-        )
-        return conversation, created
-
-# Model: Message (for chat)
-class Message(models.Model):
-    """
-    Represents a single message within a conversation.
-    """
-    conversation = models.ForeignKey(
-        Conversation,
-        on_delete=models.CASCADE,
-        related_name='messages',
-        help_text="The conversation this message belongs to."
-    )
-    sender = models.ForeignKey(
-        UserProfile,
-        on_delete=models.CASCADE,
-        related_name='sent_messages',
-        help_text="The user who sent this message."
-    )
-    content = models.TextField(
-        help_text="The text content of the message."
-    )
-    timestamp = models.DateTimeField(
-        auto_now_add=True,
-        help_text="The date and time when the message was sent."
-    )
-
-    class Meta:
-        ordering = ['timestamp']
-
-    def __str__(self):
-        return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.sender.username}: {self.content[:50]}..."
+# Removed: Conversation and Message models
+# They are no longer needed for WhatsApp integration.
 
 
-# New Models for Subscription and Payments
+# New Models for Subscription and Payments (Remain the same)
 class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=100, unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
