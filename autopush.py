@@ -102,5 +102,53 @@ def auto_git_push():
             print(f"An unexpected error occurred in the main loop: {e}", file=sys.stderr)
             time.sleep(10) # Wait before retrying after an error
 
+def auto_git_pull():
+    """
+    Performs a git pull from origin main,
+    handling common 'db.sqlite3' conflict if encountered.
+    """
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    print(f"\n--- Running git pull in: {project_root} ---")
+
+    # Determine the current branch
+    success_branch, current_branch = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_root)
+    if not success_branch:
+        print("Could not determine current branch. Cannot pull.", file=sys.stderr)
+        return False
+
+    pull_command = ["git", "pull", "origin", current_branch]
+    
+    success, output = run_command(pull_command, cwd=project_root)
+
+    if not success and "db.sqlite3" in output:
+        print("\n--- Detected 'db.sqlite3' conflict during pull. Attempting to restore and retry... ---")
+        restore_success, _ = run_command(["git", "restore", "db.sqlite3"], cwd=project_root)
+        if not restore_success:
+            # Fallback for older Git versions
+            restore_success, _ = run_command(["git", "checkout", "--", "db.sqlite3"], cwd=project_root)
+
+        if restore_success:
+            print("db.sqlite3 restored. Retrying git pull...")
+            success, output = run_command(pull_command, cwd=project_root)
+        else:
+            print("Failed to restore db.sqlite3. Please resolve manually.", file=sys.stderr)
+            return False
+
+    if success:
+        print("✅ Git pull completed successfully.")
+        print(output)
+        return True
+    else:
+        print("❌ Git pull failed.", file=sys.stderr)
+        return False
+
+
 if __name__ == "__main__":
+    # You can call auto_git_push() for monitoring and pushing,
+    # or auto_git_pull() to explicitly pull.
+
+    # Example: To just pull (e.g., on PythonAnywhere after pushing locally)
+    # auto_git_pull()
+
+    # Example: To monitor and push automatically
     auto_git_push()
