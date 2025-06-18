@@ -9,7 +9,7 @@ from django.urls import reverse_lazy # For redirecting to a URL by name
 from django.http import JsonResponse, HttpResponse # For AJAX responses and general HTTP responses
 from django.db.models import Q # For complex queries
 from django.conf import settings # Import settings to access API keys
-import requests
+import requests # For making HTTP requests to generate WhatsApp link
 import json
 import os
 from django.contrib import messages

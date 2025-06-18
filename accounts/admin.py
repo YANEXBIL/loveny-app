@@ -1,18 +1,15 @@
 # accounts/admin.py
 
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin # For custom user model in admin
+from django.contrib.auth.admin import UserAdmin
 # Import only the models that actually exist in your models.py
 from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction 
 
 
 # Register your custom UserProfile model with the admin site
-# Use the default UserAdmin for full functionality, or customize it as needed
 @admin.register(UserProfile)
 class CustomUserAdmin(UserAdmin):
-    # You can customize fields displayed in the admin list view
     list_display = ('username', 'email', 'is_staff', 'is_premium', 'user_type', 'gender', 'phone_number')
-    # Add phone_number to fields that can be edited in the admin
     fieldsets = UserAdmin.fieldsets + (
         (None, {'fields': ('bio', 'gender', 'date_of_birth', 'profile_picture', 'location', 'user_type', 'seeking', 'is_premium', 'phone_number')}),
     )
@@ -62,4 +59,4 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_display = ('user', 'plan', 'amount', 'status', 'reference', 'created_at')
     list_filter = ('status', 'plan')
     search_fields = ('user__username', 'reference')
-    readonly_fields = ('gateway_response',) # Gateway response should generally not be editable via admin
+    readonly_fields = ('gateway_response',)

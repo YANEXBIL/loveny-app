@@ -44,9 +44,7 @@ ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne', # Required for Django Channels server
-    'channels', # Required for Django Channels core
-    'channels_redis', # Required for Redis channel layer
+    # Removed 'daphne', 'channels', 'channels_redis' as in-app chat is removed
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -86,27 +84,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'loveny_project.wsgi.application'
 
-# Django Channels ASGI Application
-ASGI_APPLICATION = 'loveny_project.asgi.application'
+# Removed: Django Channels ASGI Application
+# ASGI_APPLICATION = 'loveny_project.asgi.application'
 
-# Channels Layer configuration (Redis for production)
-# IMPORTANT: You MUST set up a Redis server on PythonAnywhere
-# Go to PythonAnywhere -> Consoles -> 'Start a new Redis server'
-# This will give you a host, port, and password.
-# Replace the placeholder values below with YOUR ACTUAL REDIS DETAILS.
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            # Replace 'your-redis-username', 'your-redis-password',
-            # 'your-redis-host.pythonanywhere.com', 'your-redis-port'
-            # with the exact details from your PythonAnywhere Redis server.
-            "hosts": [os.environ.get('REDIS_URL', 'redis://your-redis-username:your-redis-password@your-redis-host.pythonanywhere.com:your-redis-port')],
-            # Example for PythonAnywhere:
-            # "hosts": ["redis://yourusername:yourpassword@redis-server.pythonanywhere.com:12345"],
-        },
-    },
-}
+# Removed: Channels Layer configuration
+# CHANNEL_LAYERS = { ... }
 
 
 # Database
