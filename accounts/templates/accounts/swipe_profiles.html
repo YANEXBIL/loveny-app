@@ -1,4 +1,4 @@
-<!-- templates/accounts/swipe_profiles.html -->
+<!-- accounts/templates/accounts/swipe_profiles.html -->
 {% extends 'accounts/base.html' %}
 
 {% block title %}Swipe Profiles{% endblock %}
@@ -11,8 +11,9 @@
     </div>
 
     {# Swipe Action Buttons (Optional, but good for non-touch/accuracy) #}
-    {% if profile %} {# Check if there's an initial profile to display buttons #}
-    <div class="mt-8 flex space-x-6">
+    {# Buttons are initially shown or hidden based on whether an initial profile exists #}
+    {# CSS classes are now handled directly via Tailwind's 'hidden' utility class #}
+    <div class="mt-8 flex space-x-6 {% if not profile %}hidden{% endif %}" id="swipe-buttons">
         <button id="dislike-btn" class="btn btn-secondary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
             ❌
         </button>
@@ -20,45 +21,48 @@
             ❤️
         </button>
     </div>
-    {% else %}
-    {# If no initial profile, hide buttons #}
-    <div class="mt-8 flex space-x-6" id="swipe-buttons" style="display: none;">
-        <button id="dislike-btn" class="btn btn-secondary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
-            ❌
-        </button>
-        <button id="like-btn" class="btn btn-primary text-2xl p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
-            ❤️
-        </button>
-    </div>
-    {% endif %}
 </div>
 
 {% endblock content %} {# THIS CLOSES THE MAIN CONTENT BLOCK #}
 
 {% block extra_js %}
 <script>
+    console.log('>>> swipe_profiles.html script started <<<'); // Initial debug log
+
     document.addEventListener('DOMContentLoaded', function() {
-        // We'll get profileCard from its container after each update
+        console.log("DOMContentLoaded fired.");
+
         let profileCardContainer = document.getElementById('profile-card-container');
-        let profileCard = document.getElementById('profile-card'); // Initial card
+        let profileCard = document.getElementById('profile-card'); // Initial card element
         const dislikeBtn = document.getElementById('dislike-btn');
         const likeBtn = document.getElementById('like-btn');
-        const swipeButtonsDiv = document.getElementById('swipe-buttons'); // Get the buttons container
+        const swipeButtonsDiv = document.getElementById('swipe-buttons');
 
-        // Function to bind/rebind event listeners to the profile card and buttons
+        let startX, startY, currentX, currentY, dragging = false;
+        const THRESHOLD = 100; // Pixels to swipe before it's considered a like/dislike
+
+        /**
+         * Rebinds event listeners to the profile card and action buttons.
+         * This is crucial because the profile card element is replaced after each swipe.
+         */
         function rebindEventListeners() {
-            // Get the current profile card (it changes after each swipe)
+            // Re-select the current profile card from the DOM
             profileCard = document.getElementById('profile-card'); 
+            console.log("rebindEventListeners: profileCard re-selected:", profileCard);
 
             if (!profileCard) {
-                console.log("No profile card found after rebind. Hiding buttons.");
-                if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none'; // Hide buttons if no card
+                console.log("rebindEventListeners: No profile card found. Hiding buttons.");
+                // Add 'hidden' class to hide the buttons if no profile card
+                if (swipeButtonsDiv) swipeButtonsDiv.classList.add('hidden'); 
                 return;
             } else {
-                if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'flex'; // Show buttons if card exists
+                console.log("rebindEventListeners: Profile card found. Ensuring buttons are visible.");
+                // Remove 'hidden' class to show the buttons
+                if (swipeButtonsDiv) swipeButtonsDiv.classList.remove('hidden'); 
             }
 
-            // Remove existing listeners to prevent duplicates
+            // Remove existing listeners to prevent duplicates before adding new ones
+            // Check if listeners were previously attached to this specific element
             profileCard.removeEventListener('mousedown', onStart);
             profileCard.removeEventListener('mousemove', onMove);
             profileCard.removeEventListener('mouseup', onEnd);
@@ -66,24 +70,39 @@
             profileCard.removeEventListener('touchmove', onMove);
             profileCard.removeEventListener('touchend', onEnd);
 
-            // Add new listeners
+            // Add new listeners to the *current* profileCard
             profileCard.addEventListener('mousedown', onStart);
             profileCard.addEventListener('mousemove', onMove);
             profileCard.addEventListener('mouseup', onEnd);
             profileCard.addEventListener('touchstart', onStart);
             profileCard.addEventListener('touchmove', onMove);
             profileCard.addEventListener('touchend', onEnd);
+            console.log("rebindEventListeners: Swipe event listeners re-attached to new card.");
 
             // Rebind action buttons
-            if (dislikeBtn) dislikeBtn.onclick = () => { performAction('dislike'); animateSwipe('left', fetchNextProfile); };
-            if (likeBtn) likeBtn.onclick = () => { performAction('like'); animateSwipe('right', fetchNextProfile); };
+            if (dislikeBtn) {
+                dislikeBtn.onclick = null; // Remove previous handler
+                dislikeBtn.onclick = () => {
+                    console.log("Dislike button clicked.");
+                    performAction('dislike');
+                    animateSwipe('left', fetchNextProfile);
+                };
+                console.log("rebindEventListeners: Dislike button listener re-attached.");
+            }
+            if (likeBtn) {
+                likeBtn.onclick = null; // Remove previous handler
+                likeBtn.onclick = () => {
+                    console.log("Like button clicked.");
+                    performAction('like');
+                    animateSwipe('right', fetchNextProfile);
+                };
+                console.log("rebindEventListeners: Like button listener re-attached.");
+            }
         }
 
-        // Initialize event listeners on page load
+        // Initialize event listeners on page load for the initial card
         rebindEventListeners();
-
-        let startX, startY, currentX, currentY, dragging = false;
-        const THRESHOLD = 100; // Pixels to swipe before it's considered a like/dislike
+        console.log("Initial rebindEventListeners call completed.");
 
         // Functions to apply/reset styles
         function resetCard() {
@@ -91,11 +110,13 @@
                 profileCard.style.transition = 'transform 0.3s ease-out';
                 profileCard.style.transform = 'translate(0px, 0px) rotate(0deg)';
                 profileCard.style.opacity = '1';
+                console.log("resetCard: Card reset to original position.");
             }
         }
 
         function animateSwipe(direction, onComplete) {
             if (!profileCard) {
+                console.warn("animateSwipe: No profile card to animate.");
                 if (onComplete) onComplete();
                 return;
             }
@@ -104,11 +125,13 @@
             let rotateZ = 0;
 
             if (direction === 'left') {
-                translateX = -window.innerWidth;
+                translateX = -window.innerWidth * 1.5; // Swipe further off-screen
                 rotateZ = -30;
+                console.log("animateSwipe: Animating left (dislike).");
             } else if (direction === 'right') {
-                translateX = window.innerWidth;
+                translateX = window.innerWidth * 1.5; // Swipe further off-screen
                 rotateZ = 30;
+                console.log("animateSwipe: Animating right (like).");
             }
 
             profileCard.style.transform = `translate(${translateX}px, ${currentY - startY}px) rotate(${rotateZ}deg)`;
@@ -116,8 +139,9 @@
 
             profileCard.addEventListener('transitionend', function handler() {
                 profileCard.removeEventListener('transitionend', handler);
+                console.log("animateSwipe: Transition ended.");
                 if (onComplete) onComplete();
-            }, { once: true }); // Use { once: true } to ensure handler runs only once
+            }, { once: true });
         }
 
         // --- Event Handlers for Swiping ---
@@ -125,13 +149,19 @@
             dragging = true;
             if (profileCard) {
                 profileCard.style.transition = 'none'; // Disable transition during drag
+                console.log("onStart: Dragging started, transition disabled.");
             }
+            // Get clientX/Y from event (handles both mouse and touch)
             startX = e.clientX || e.touches[0].clientX;
             startY = e.clientY || e.touches[0].clientY;
+            console.log(`onStart: Start at (${startX}, ${startY})`);
         }
 
         function onMove(e) {
             if (!dragging || !profileCard) return;
+            // Prevent scrolling on touch devices while dragging horizontally
+            if (e.type === 'touchmove') e.preventDefault(); 
+            
             currentX = e.clientX || e.touches[0].clientX;
             currentY = e.clientY || e.touches[0].clientY;
             const translateX = currentX - startX;
@@ -139,38 +169,42 @@
             const rotation = translateX / 20; // Slight rotation effect
 
             profileCard.style.transform = `translate(${translateX}px, ${translateY}px) rotate(${rotation}deg)`;
+            // console.log(`onMove: Translate X: ${translateX}, Y: ${translateY}`); // Too verbose for continuous log
         }
 
         function onEnd(e) {
             if (!dragging || !profileCard) return;
             dragging = false;
+            console.log("onEnd: Dragging ended.");
 
             const deltaX = (e.clientX || e.changedTouches[0].clientX) - startX;
-            // No need for deltaY if we're only interested in horizontal swipe for like/dislike
-            // const deltaY = (e.clientY || e.changedTouches[0].clientY) - startY;
-
+            // Only consider horizontal swipe for like/dislike threshold
             if (deltaX > THRESHOLD) {
-                // Swiped right (Like)
+                console.log("onEnd: Swiped right (Like).");
                 performAction('like');
                 animateSwipe('right', fetchNextProfile);
             } else if (deltaX < -THRESHOLD) {
-                // Swiped left (Dislike)
+                console.log("onEnd: Swiped left (Dislike).");
                 performAction('dislike');
                 animateSwipe('left', fetchNextProfile);
             } else {
-                // Not a significant swipe, reset
+                console.log("onEnd: No significant swipe, resetting card.");
                 resetCard();
             }
         }
 
         // --- AJAX Function for Like/Dislike ---
         async function performAction(action) {
-            if (!profileCard) return; // Ensure profileCard exists before trying to get its dataset
-            const username = profileCard.dataset.username;
-            if (!username) {
-                console.error("Profile card has no username data attribute.");
+            if (!profileCard) {
+                console.error("performAction: No profile card to get username from.");
                 return;
             }
+            const username = profileCard.dataset.username;
+            if (!username) {
+                console.error("performAction: Profile card has no username data attribute.");
+                return;
+            }
+            console.log(`performAction: Performing '${action}' on user: ${username}`);
 
             try {
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -185,28 +219,32 @@
                 });
 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`performAction: HTTP error! Status: ${response.status}, Response: ${errorText}`);
+                    // Fallback alert for the user in case of server error
+                    alert(`Failed to perform action: Server error ${response.status}. See console for details.`);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json(); // like_view now returns JSON for AJAX
-                console.log('Server response:', data);
-                // Display messages based on JSON response, not Django messages framework in this context
+                const data = await response.json();
+                console.log('performAction: Server response:', data);
+
                 if (data.status === 'matched') {
                     // Implement a simple visual notification for a match
                     alert("It's a Match! 🎉 You can now message them from your Matches page.");
                 } else if (data.message) {
-                    // You could display other messages, but less critical for swipe UI
-                    console.log(data.message);
+                    console.log("performAction: Server message:", data.message);
                 }
 
             } catch (error) {
-                console.error('Error performing action:', error);
-                // Optionally show an error message to the user
+                console.error('performAction: Error performing action:', error);
+                alert("An error occurred during swipe action. Please try again.");
             }
         }
 
         // --- Fetch Next Profile HTML Partial via AJAX ---
         async function fetchNextProfile() {
+            console.log("fetchNextProfile: Attempting to fetch next profile.");
             try {
                 const response = await fetch(`{% url 'swipe_profiles' %}`, {
                     headers: {
@@ -215,8 +253,8 @@
                 });
 
                 if (!response.ok) {
-                    // This handles server-side errors, not "no more profiles"
-                    console.error('Error fetching next profile:', response.statusText);
+                    const errorText = await response.text();
+                    console.error(`fetchNextProfile: HTTP error! Status: ${response.status}, Response: ${errorText}`);
                     profileCardContainer.innerHTML = `
                         <div class="text-center text-lg text-gray-600 text-red-500 w-full">
                             Error loading profiles. Please refresh.
@@ -229,24 +267,28 @@
                     return;
                 }
 
-                const newHtml = await response.text(); // This is the HTML from profile_card_partial.html
+                const newHtml = await response.text();
+                console.log("fetchNextProfile: Received new HTML content.");
                 
                 // Directly replace the content of the profile card container
                 profileCardContainer.innerHTML = newHtml;
+                console.log("fetchNextProfile: Container HTML updated.");
                 
                 // Re-bind event listeners for the newly loaded card and buttons
                 rebindEventListeners();
+                console.log("fetchNextProfile: rebindEventListeners called.");
 
                 // Check if a new profile card was actually loaded (i.e., not the "no more profiles" message)
                 const newlyLoadedProfileCard = document.getElementById('profile-card');
-                if (!newlyLoadedProfileCard && swipeButtonsDiv) {
-                    swipeButtonsDiv.style.display = 'none'; // Hide buttons if no new card
-                } else if (swipeButtonsDiv) {
-                     swipeButtonsDiv.style.display = 'flex'; // Show buttons if a new card is loaded
+                if (!newlyLoadedProfileCard) {
+                    console.log("fetchNextProfile: No new profile card, displaying 'no more profiles' message. Hiding buttons.");
+                    if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none';
+                } else {
+                    console.log("fetchNextProfile: New profile card loaded.");
                 }
 
             } catch (error) {
-                console.error('Error fetching next profile:', error);
+                console.error('fetchNextProfile: Error fetching next profile:', error);
                 profileCardContainer.innerHTML = `
                     <div class="text-center text-lg text-gray-600 text-red-500 w-full">
                         An unexpected error occurred. Please refresh.
@@ -258,6 +300,6 @@
                 if (swipeButtonsDiv) swipeButtonsDiv.style.display = 'none';
             }
         }
-    });
+    }); // End of DOMContentLoaded
 </script>
 {% endblock extra_js %}
