@@ -17,6 +17,7 @@ from datetime import timedelta # Import timedelta for date calculations
 
 # Import all models and forms
 from .forms import CustomUserCreationForm, UserProfileForm
+# Ensure Message and Conversation models are imported here:
 from .models import UserProfile, Like, Conversation, Message, SubscriptionPlan, UserSubscription, PaymentTransaction
 
 
@@ -211,7 +212,7 @@ def like_view(request, username):
 
         # For simplicity, we are redirecting back to the browse page.
         # In a real app, you might use JavaScript to update the UI without a full page reload.
-        return redirect('browse_profiles') # Redirect back to the browse page
+        return redirect('browse_profiles')
 
     # If the request is not a POST (e.g., direct access), redirect to browse
     return redirect('browse_profiles')
@@ -269,6 +270,7 @@ def chat_room_view(request, username):
     """
     Renders the chat room for a conversation between the current user and 'username'.
     Ensures a conversation exists and fetches its messages.
+    Handles POST requests to send new messages.
     """
     current_user = request.user
     other_user = get_object_or_404(UserProfile, username=username)
@@ -281,13 +283,33 @@ def chat_room_view(request, username):
     # handles ordering users to ensure uniqueness.
     conversation, created = Conversation.get_or_create_conversation(current_user, other_user)
 
-    # Fetch all messages for this conversation, ordered by timestamp
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    if request.method == 'POST':
+        # Get message from the form input with name="message_content"
+        message_content = request.POST.get('message_content')
+
+        if message_content:
+            # Create and save the new message
+            Message.objects.create(
+                conversation=conversation,
+                sender=current_user,
+                content=message_content
+            )
+            messages.success(request, "Message sent!")
+            # Redirect back to the same chat room to refresh messages
+            return redirect('chat_room', username=username)
+        else:
+            messages.error(request, "Message cannot be empty.")
+            # If message is empty, the page will still render with existing messages below
+
+    # Fetch all messages for this conversation, ordered by timestamp for display
+    # Using a different variable name to avoid conflict with the imported 'messages' module
+    messages_in_chat = Message.objects.filter(conversation=conversation).order_by('timestamp')
 
     context = {
         'other_user': other_user,
         'conversation_id': conversation.id,
-        'messages': messages,
+        'messages': messages_in_chat,
+        # 'current_user' is automatically available in templates if you use Django's auth context processors
     }
     return render(request, 'accounts/chat_room.html', context)
 
