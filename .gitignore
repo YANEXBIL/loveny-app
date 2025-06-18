@@ -1,25 +1,17 @@
-# Virtual environment
-venv/
-
-# Environment variables file (sensitive data)
-.env
-
-# Compiled Python files
+# Python
 __pycache__/
 *.pyc
-
-# Database file
-db.sqlite3    <-- MAKE SURE THIS LINE IS PRESENT
-
-# Media files (uploaded by users)
-media/        <-- MAKE SURE THIS LINE IS PRESENT
-
-# IDE files (e.g., VS Code)
-.vscode/
-*.sublime-project
-*.sublime-workspace
-
-# Python packaging and distribution
+*.pyo
+*.pyd
+.Python/
+env/
+venv/
 *.egg-info/
-dist/
-build/
+.env # Your environment file (e.g., for Django SECRET_KEY, Paystack keys)
+
+# Django
+db.sqlite3
+/media/ # User-uploaded files (these should not be in Git)
+/staticfiles/ # Collected static files (these are generated)
+.vscode/ # VS Code settings, if you use it
+*.log # Log files
