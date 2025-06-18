@@ -43,9 +43,15 @@
                 {% if profile.seeking %}
                     <p class="flex items-center"><strong class="w-24 text-gray-600">Seeking:</strong> {{ profile.get_seeking_display }}</p>
                 {% endif %}
-                {# Optional: Display phone number if you want it visible #}
+                
+                {# Display and blur phone number based on premium status #}
                 {% if profile.phone_number %}
-                    <p class="flex items-center"><strong class="w-24 text-gray-600">WhatsApp:</strong> {{ profile.phone_number }}</p>
+                    <p class="flex items-center">
+                        <strong class="w-24 text-gray-600">WhatsApp:</strong> 
+                        <span class="{% if not request.user.is_premium %}blur-sm{% endif %}">
+                            {{ profile.phone_number }}
+                        </span>
+                    </p>
                 {% endif %}
             </div>
 
@@ -65,14 +71,22 @@
                     </button>
                 </form>
 
-                {# Message on WhatsApp button - only if the other user has provided a phone number #}
-                {% if whatsapp_link %}
-                    <a href="{{ whatsapp_link }}" target="_blank" class="btn btn-primary bg-green-500 hover:bg-green-600">
-                        Message on WhatsApp
-                    </a>
+                {# Message on WhatsApp button - conditional display and link #}
+                {% if profile.phone_number %}
+                    {% if request.user.is_premium %}
+                        <a href="{{ whatsapp_link }}" target="_blank" class="btn btn-primary bg-green-500 hover:bg-green-600">
+                            Message on WhatsApp
+                        </a>
+                    {% else %}
+                        <button class="btn btn-primary bg-green-500 opacity-70 cursor-not-allowed" disabled>
+                            Unlock WhatsApp Messaging (Premium)
+                        </button>
+                        {# Optional: Add a link to subscription plans #}
+                        <a href="{% url 'subscription_plans' %}" class="btn btn-secondary">Upgrade Now</a>
+                    {% endif %}
                 {% else %}
                     <button class="btn btn-secondary cursor-not-allowed opacity-70" disabled>
-                        No WhatsApp number
+                        No WhatsApp number (from {{ profile.username }})
                     </button>
                 {% endif %}
             </div>

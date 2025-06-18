@@ -1,23 +1,21 @@
 # accounts/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login # Import login function (logout is a class-based view)
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views.generic import CreateView
-from django.urls import reverse_lazy # For redirecting to a URL by name
-from django.http import JsonResponse, HttpResponse # For AJAX responses and general HTTP responses
-from django.db.models import Q # For complex queries
-from django.conf import settings # Import settings to access API keys
-import requests # For making HTTP requests to generate WhatsApp link
+from django.urls import reverse_lazy
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Q
+from django.conf import settings
+import requests
 import json
 import os
 from django.contrib import messages
 from datetime import timedelta
 
-# Import all models and forms
 from .forms import CustomUserCreationForm, UserProfileForm
-# Note: Conversation and Message models are removed from models.py, so don't import them here.
 from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction
 
 
@@ -107,7 +105,7 @@ def browse_profiles_view(request):
 def view_other_profile(request, username):
     """
     Displays a specific user's profile detail.
-    Includes logic to generate a WhatsApp chat link.
+    Includes logic to generate a WhatsApp chat link ONLY if current_user is premium.
     """
     current_user = request.user
     profile = get_object_or_404(UserProfile, username=username)
@@ -121,24 +119,21 @@ def view_other_profile(request, username):
     ).exists()
 
     whatsapp_link = None
-    if profile.phone_number:
-        # Construct the absolute URL to the current user's profile
-        # This URL will be sent in the WhatsApp message to the other user
+    # Only generate WhatsApp link if current user is premium AND the other user has a phone number
+    if current_user.is_premium and profile.phone_number:
         user_profile_url = request.build_absolute_uri(reverse_lazy('view_other_profile', kwargs={'username': current_user.username}))
-        
-        # Pre-fill message for WhatsApp
-        # Ensure the phone number starts with a '+' and no spaces/hyphens
         clean_phone_number = profile.phone_number.replace(' ', '').replace('-', '')
-        
-        # URL-encode the message text
         pre_filled_message = f"Hi {profile.username}! I found your profile on LOVENY. Here's my profile: {user_profile_url}"
         whatsapp_link = f"https://wa.me/{clean_phone_number}?text={requests.utils.quote(pre_filled_message)}"
+    elif not current_user.is_premium:
+        messages.info(request, "Upgrade to premium to message other users on WhatsApp!")
+
 
     context = {
         'profile': profile,
         'has_liked': has_liked,
         'is_matched': is_matched,
-        'whatsapp_link': whatsapp_link, # Pass the WhatsApp link to the template
+        'whatsapp_link': whatsapp_link, # Will be None if not premium or no phone number
     }
     return render(request, 'accounts/other_profile_detail.html', context)
 
@@ -183,10 +178,11 @@ def matches_view(request):
 
     matches = UserProfile.objects.filter(id__in=list(mutual_match_ids)).order_by('username')
 
+    # The categorized matches are still prepared in context for potential future use,
+    # but the template now renders the combined 'matches' list only.
     categorized_matches = {
         'DATING': [], 'HOOKUP': [], 'SUGAR_DADDY': [], 'SUGAR_MUMMY': [],
     }
-
     for match_profile in matches:
         if match_profile.user_type in categorized_matches:
             categorized_matches[match_profile.user_type].append(match_profile)
@@ -197,12 +193,9 @@ def matches_view(request):
         'sugar_daddy_matches': categorized_matches['SUGAR_DADDY'],
         'sugar_mummy_matches': categorized_matches['SUGAR_MUMMY'],
         'has_any_matches': bool(matches.exists()),
-        'matches': matches,
+        'matches': matches, # Pass the combined list for simpler rendering in the updated matches.html
     }
     return render(request, 'accounts/matches.html', context)
-
-
-# Removed: chat_room_view and message_gate_view
 
 
 @login_required
@@ -245,7 +238,12 @@ def swipe_profiles_view(request):
 
 @login_required
 def subscription_plans_view(request):
-    """Displays available subscription plans."""
+    """
+    Displays available subscription plans.
+    """
+    # Assuming you will manage these plans in your admin interface to match prices and durations.
+    # E.g., create a plan named "Weekly Premium" with price 1000 and duration_days 7.
+    # And a plan named "Monthly Premium" with price 4000 and duration_days 30.
     plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price')
     context = {
         'plans': plans
