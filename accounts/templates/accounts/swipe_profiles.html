@@ -32,13 +32,14 @@
         console.log("DOMContentLoaded fired.");
 
         const profileCardContainer = document.getElementById('profile-card-container');
-        const dislikeBtn = document.getElementById('dislike-btn');
-        const likeBtn = document.getElementById('like-btn');
-        const swipeButtonsDiv = document.getElementById('swipe-buttons');
-
         let profileCard; // Will be reassigned on each rebind
-        let likeOverlay; // New: Reference for LIKE overlay
-        let nopeOverlay; // New: Reference for NOPE overlay
+        let likeOverlay; // Reference for LIKE overlay
+        let nopeOverlay; // Reference for NOPE overlay
+
+        // Re-select these buttons within rebindEventListeners to ensure fresh references
+        let dislikeBtn; 
+        let likeBtn;
+        let swipeButtonsDiv;
 
         let startX, startY, currentX, currentY, dragging = false;
         const THRESHOLD = 100; // Pixels to swipe before it's considered a like/dislike
@@ -52,10 +53,17 @@
         function rebindEventListeners() {
             // Re-select the current profile card and overlays from the DOM
             profileCard = document.getElementById('profile-card'); 
-            likeOverlay = document.getElementById('like-overlay'); // New
-            nopeOverlay = document.getElementById('nope-overlay'); // New
+            likeOverlay = document.getElementById('like-overlay'); 
+            nopeOverlay = document.getElementById('nope-overlay'); 
+            
+            // Re-select buttons and container here to ensure freshest references
+            dislikeBtn = document.getElementById('dislike-btn');
+            likeBtn = document.getElementById('like-btn');
+            swipeButtonsDiv = document.getElementById('swipe-buttons');
+
             console.log("rebindEventListeners: profileCard re-selected:", profileCard);
             console.log("rebindEventListeners: likeOverlay:", likeOverlay, "nopeOverlay:", nopeOverlay);
+            console.log("rebindEventListeners: dislikeBtn:", dislikeBtn, "likeBtn:", likeBtn, "swipeButtonsDiv:", swipeButtonsDiv);
 
 
             if (!profileCard) {
@@ -68,15 +76,15 @@
             }
 
             // Remove existing listeners from the OLD card (if any) to prevent duplicates
-            // Ensure we only remove if profileCard is not null
-            if (profileCard.listenersAttached) { // Custom flag to track if listeners were attached
+            // We use a custom flag to track if listeners were attached to THIS specific card instance
+            if (profileCard.listenersAttached) { 
                  profileCard.removeEventListener('mousedown', onStart);
                  profileCard.removeEventListener('mousemove', onMove);
                  profileCard.removeEventListener('mouseup', onEnd);
                  profileCard.removeEventListener('touchstart', onStart);
                  profileCard.removeEventListener('touchmove', onMove);
                  profileCard.removeEventListener('touchend', onEnd);
-                 console.log("rebindEventListeners: Removed old event listeners.");
+                 console.log("rebindEventListeners: Removed old event listeners from previous card.");
             }
 
             // Add new listeners to the *current* profileCard
@@ -86,7 +94,7 @@
             profileCard.addEventListener('touchstart', onStart, { passive: false }); // passive: false to allow e.preventDefault()
             profileCard.addEventListener('touchmove', onMove, { passive: false }); // passive: false to allow e.preventDefault()
             profileCard.addEventListener('touchend', onEnd);
-            profileCard.listenersAttached = true; // Set custom flag
+            profileCard.listenersAttached = true; // Set custom flag on this new card instance
             console.log("rebindEventListeners: Swipe event listeners re-attached to new card.");
 
             // Rebind action buttons
@@ -97,7 +105,11 @@
                     performAction('dislike');
                     animateSwipe('left', fetchNextProfile);
                 };
+                console.log("rebindEventListeners: Dislike button listener re-attached.");
+            } else {
+                console.warn("rebindEventListeners: Dislike button element not found!");
             }
+            
             if (likeBtn) {
                 likeBtn.onclick = null; // Remove previous handler
                 likeBtn.onclick = () => {
@@ -105,6 +117,9 @@
                     performAction('like');
                     animateSwipe('right', fetchNextProfile);
                 };
+                console.log("rebindEventListeners: Like button listener re-attached.");
+            } else {
+                console.warn("rebindEventListeners: Like button element not found!");
             }
         }
 
@@ -134,7 +149,7 @@
             profileCard.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
             let translateX = 0;
             let rotateZ = 0;
-            let finalOpacity = 0; // Card fades out
+            // let finalOpacity = 0; // Card fades out - no longer needed as opacity 0 is set on successful swipe
 
             if (direction === 'left') {
                 translateX = -window.innerWidth * 1.5; // Swipe further off-screen
@@ -151,7 +166,7 @@
             }
 
             profileCard.style.transform = `translate(${translateX}px, ${currentY - startY}px) rotate(${rotateZ}deg)`;
-            profileCard.style.opacity = finalOpacity;
+            profileCard.style.opacity = '0'; // Card fades out upon successful swipe
 
             profileCard.addEventListener('transitionend', function handler() {
                 profileCard.removeEventListener('transitionend', handler);
