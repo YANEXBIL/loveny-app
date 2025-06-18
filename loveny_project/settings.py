@@ -43,8 +43,7 @@ ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
 # Application definition
 
 INSTALLED_APPS = [
-    # Removed 'daphne', 'channels', 'channels_redis' as in-app chat is removed
-    # 'tailwind_filters', # <-- THIS LINE MUST BE REMOVED OR COMMENTED OUT
+    # 'tailwind_filters', # Removed as it was causing issues and not available
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -58,7 +57,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware', # CSRF Middleware MUST be before AuthenticationMiddleware for security
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -83,13 +82,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'loveny_project.wsgi.application'
-
-# Removed: Django Channels ASGI Application
-# ASGI_APPLICATION = 'loveny_project.asgi.application'
-
-# Removed: Channels Layer configuration
-# CHANNEL_LAYERS = { ... }
-
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -166,5 +158,14 @@ LOGOUT_REDIRECT_URL = 'login' # Redirect to login page after logout
 
 # Paystack API Keys (Replace with your actual keys!)
 # IMPORTANT: In production, store these securely (e.g., environment variables)
-PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', 'pk_test_your_paystack_public_key') # <--- LOAD FROM ENV
-PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_your_paystack_secret_key') # <--- LOAD FROM ENV
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', 'pk_test_your_paystack_public_key')
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_your_paystack_secret_key')
+
+
+# --- CSRF and HTTPS Fixes for PythonAnywhere ---
+# Required for correct HTTPS detection when behind a proxy like PythonAnywhere
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Ensure CSRF and Session cookies are only sent over HTTPS
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+# --- End CSRF and HTTPS Fixes ---
