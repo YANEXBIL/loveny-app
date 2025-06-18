@@ -12,7 +12,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
-import os 
+import os
 from pathlib import Path
 
 # --- ADD THESE LINES TO LOAD ENVIRONMENT VARIABLES FROM .env FILE ---
@@ -31,19 +31,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # IMPORTANT: Load SECRET_KEY from environment variable for production!
 # The second argument is a fallback for development. NEVER use your actual production key here.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-this-in-production-!!!!-and-make-it-long-and-random') 
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-this-in-production-!!!!-and-make-it-long-and-random')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # For local development, you might set DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 DEBUG = False # Set to False for production (important for PythonAnywhere)
 
 # Add your PythonAnywhere domain here
-# Load ALLOWED_HOSTS from an environment variable or define specifically
-# In development, ALLOWED_HOSTS can be empty or ['127.0.0.1', 'localhost'] if DEBUG is True
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') 
+# --- CORRECTED ALLOWED_HOSTS SECTION ---
 # In production, ALLOWED_HOSTS MUST contain your PythonAnywhere domain.
-# If DEBUG is False and ALLOWED_HOSTS is still empty, Django will refuse to run.
-# Ensure 'your_username.pythonanywhere.com' is in DJANGO_ALLOWED_HOSTS in your .env or PythonAnywhere config.
+# We'll explicitly add your domain for now to resolve the 400 error.
+# You can still use the environment variable for more complex setups if needed.
+ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
+# --- END CORRECTED ALLOWED_HOSTS SECTION ---
 
 
 # Application definition

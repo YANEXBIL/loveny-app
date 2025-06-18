@@ -1,13 +1,10 @@
-<!-- templates/accounts/base.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LOVENY{% endblock %}</title>
-    <!-- Inter font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Apply Inter font to the body */
@@ -22,20 +19,19 @@
             margin: 0 auto;
             padding: 20px;
         }
-        /* Replaced @apply with direct Tailwind classes */
+        /* Custom styles for form inputs and buttons (as defined previously) */
         input[type="text"], input[type="email"], input[type="password"], input[type="date"], textarea, select {
             width: 100%;
             padding: 0.75rem; /* p-3 */
             border: 1px solid #d1d5db; /* border-gray-300 */
             border-radius: 0.5rem; /* rounded-lg */
             outline: none; /* focus:outline-none */
-            box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; /* focus:ring-2 and focus:ring-pink-400 equivalent */
+            box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
         }
         input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
             outline: none;
             box-shadow: 0 0 0 2px #ec4899; /* focus:ring-pink-400 */
         }
-        /* General button styling */
         .btn {
             padding-left: 1.5rem; /* px-6 */
             padding-right: 1.5rem; /* px-6 */
@@ -43,18 +39,16 @@
             padding-bottom: 0.75rem; /* py-3 */
             border-radius: 0.5rem; /* rounded-lg */
             font-weight: 600; /* font-semibold */
-            transition: all 0.3s ease-in-out; /* transition duration-300 ease-in-out */
+            transition: all 0.3s ease-in-out;
         }
-        /* Primary button styling with gradient and shadow */
         .btn-primary {
             background-image: linear-gradient(to right, #ec4899, #9333ea); /* bg-gradient-to-r from-pink-500 to-purple-600 */
             color: #fff; /* text-white */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .btn-primary:hover {
             background-image: linear-gradient(to right, #db2777, #7e22ce); /* hover:from-pink-600 hover:to-purple-700 */
         }
-        /* Secondary button styling */
         .btn-secondary {
             background-color: #e5e7eb; /* bg-gray-200 */
             color: #1f2937; /* text-gray-800 */
@@ -65,23 +59,29 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <header class="bg-white shadow-md py-4">
+    <header class="bg-white shadow-md py-4 relative z-10"> {# Added relative and z-10 for mobile menu positioning #}
         <nav class="container flex justify-between items-center">
-            <!-- LOVENY logo with gradient text -->
             <a href="{% url 'homepage' %}" class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</a>
-            <ul class="flex space-x-6">
+
+            <div class="md:hidden">
+                <button id="mobile-menu-button" class="text-gray-700 focus:outline-none focus:text-pink-500">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <ul id="main-navigation" class="hidden md:flex md:space-x-6"> {# hidden by default, flex on md+ #}
                 {% if user.is_authenticated %}
-                    <!-- Navigation links for authenticated users -->
-                    <li><a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Profile</a></li>
-                    <li><a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Browse Matches</a></li>
-                    <li><a href="{% url 'swipe_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Swipe</a></li> {# NEW LINK #}
-                    <li><a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Matches</a></li> 
-                    {% if not user.is_premium %} {# Show Upgrade only if user is NOT premium #}
-                        <li><a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-500 font-medium">Upgrade</a></li>
+                    <li><a href="{% url 'profile' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">My Profile</a></li>
+                    <li><a href="{% url 'browse_profiles' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Browse Matches</a></li>
+                    <li><a href="{% url 'swipe_profiles' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Swipe</a></li>
+                    <li><a href="{% url 'matches' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">My Matches</a></li>
+                    {% if not user.is_premium %}
+                        <li><a href="{% url 'subscription_plans' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Upgrade</a></li>
                     {% endif %}
-                    {# Changed logout to a form for POST request for better security and reliability #}
                     <li>
-                        <form action="{% url 'logout' %}" method="post" class="inline">
+                        <form action="{% url 'logout' %}" method="post" class="block py-2 px-4 inline">
                             {% csrf_token %}
                             <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer">
                                 Logout
@@ -89,16 +89,14 @@
                         </form>
                     </li>
                 {% else %}
-                    <!-- Navigation links for unauthenticated users -->
-                    <li><a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-500 font-medium">Login</a></li>
-                    <li><a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a></li>
+                    <li><a href="{% url 'login' %}" class="block py-2 px-4 text-gray-700 hover:text-pink-500 font-medium">Login</a></li>
+                    <li><a href="{% url 'register' %}" class="btn btn-primary block py-2 px-4">Sign Up</a></li> {# Added block py-2 px-4 for consistency #}
                 {% endif %}
             </ul>
         </nav>
     </header>
 
     <main class="flex-grow container py-8">
-        <!-- Display Django messages (e.g., success messages after registration) -->
         {% if messages %}
             <ul class="messages mb-4">
                 {% for message in messages %}
@@ -109,7 +107,6 @@
             </ul>
         {% endif %}
         {% block content %}
-        <!-- Page-specific content will be inserted here -->
         {% endblock content %}
     </main>
 
@@ -118,5 +115,40 @@
             &copy; 2025 LOVENY. All rights reserved.
         </div>
     </footer>
+
+    <script>
+        // JavaScript to toggle the mobile menu
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mainNavigation = document.getElementById('main-navigation');
+
+        if (mobileMenuButton && mainNavigation) {
+            mobileMenuButton.addEventListener('click', () => {
+                mainNavigation.classList.toggle('hidden'); // Toggles visibility
+                
+                // Add/remove mobile-specific styling for the menu when active
+                mainNavigation.classList.toggle('flex');
+                mainNavigation.classList.toggle('flex-col');
+                mainNavigation.classList.toggle('absolute');
+                mainNavigation.classList.toggle('top-full'); // Position right below the header
+                mainNavigation.classList.toggle('inset-x-0'); // Stretch across full width
+                mainNavigation.classList.toggle('bg-white');
+                mainNavigation.classList.toggle('shadow-lg');
+                mainNavigation.classList.toggle('items-center'); // Center items horizontally
+                mainNavigation.classList.toggle('py-4'); // Vertical padding for the menu dropdown
+                mainNavigation.classList.toggle('space-y-4'); // Vertical spacing between links
+                mainNavigation.classList.toggle('space-x-0'); // Remove horizontal spacing for links
+                
+                // For direct links inside the menu
+                mainNavigation.querySelectorAll('a').forEach(link => {
+                    link.classList.toggle('w-full'); // Make links full width
+                    link.classList.toggle('text-center'); // Center link text
+                });
+                mainNavigation.querySelectorAll('form').forEach(form => {
+                    form.classList.toggle('w-full'); // Make logout form full width
+                    form.classList.toggle('text-center'); // Center logout button text
+                });
+            });
+        }
+    </script>
 </body>
 </html>
