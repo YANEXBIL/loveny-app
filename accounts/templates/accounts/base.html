@@ -166,19 +166,43 @@
         document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
             const mobileMenu = document.getElementById('mobile-menu');
-            const mobileMenuClose = document.getElementById('mobile-menu-close'); // New close button
+            const mobileMenuClose = document.getElementById('mobile-menu-close');
+
+            function closeMobileMenu() {
+                if (!mobileMenu.classList.contains('translate-x-full')) {
+                    mobileMenu.classList.add('translate-x-full'); // Slide out
+                }
+            }
 
             if (mobileMenuToggle && mobileMenu) {
-                mobileMenuToggle.addEventListener('click', function() {
+                mobileMenuToggle.addEventListener('click', function(event) {
+                    event.stopPropagation(); // Prevent this click from propagating to document and closing immediately
                     mobileMenu.classList.remove('translate-x-full'); // Slide in
                 });
 
-                // New event listener for the close button
                 if (mobileMenuClose) {
-                    mobileMenuClose.addEventListener('click', function() {
-                        mobileMenu.classList.add('translate-x-full'); // Slide out
+                    mobileMenuClose.addEventListener('click', function(event) {
+                        event.stopPropagation(); // Prevent this click from propagating
+                        closeMobileMenu();
                     });
                 }
+
+                // Close when clicking outside the sidebar or toggle button
+                document.addEventListener('click', function(event) {
+                    const isClickInsideMenu = mobileMenu.contains(event.target);
+                    const isClickOnToggle = mobileMenuToggle.contains(event.target);
+
+                    if (!isClickInsideMenu && !isClickOnToggle) {
+                        closeMobileMenu();
+                    }
+                });
+
+                // Optional: Close menu if a link inside it is clicked
+                mobileMenu.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', function() {
+                        closeMobileMenu();
+                    });
+                });
             }
         });
     </script>
