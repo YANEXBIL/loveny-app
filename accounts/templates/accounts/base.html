@@ -1,193 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}LOVENY{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Apply Inter font to the body */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5; /* Light gray background */
-            color: #333; /* Dark grey text color */
-        }
-        /* Basic container for content centering and padding */
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        /* Custom styles for form inputs and buttons */
-        input[type="text"], input[type="email"], input[type="password"], input[type="date"], textarea, select {
-            width: 100%;
-            padding: 0.75rem; /* p-3 */
-            border: 1px solid #d1d5db; /* border-gray-300 */
-            border-radius: 0.5rem; /* rounded-lg */
-            outline: none; /* focus:outline-none */
-            box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
-        }
-        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px #ec4899; /* focus:ring-pink-400 */
-        }
-        .btn {
-            padding-left: 1.5rem; /* px-6 */
-            padding-right: 1.5rem; /* px-6 */
-            padding-top: 0.75rem; /* py-3 */
-            padding-bottom: 0.75rem; /* py-3 */
-            border-radius: 0.5rem; /* rounded-lg */
-            font-weight: 600; /* font-semibold */
-            transition: all 0.3s ease-in-out;
-        }
-        .btn-primary {
-            background-image: linear-gradient(to right, #ec4899, #9333ea); /* bg-gradient-to-r from-pink-500 to-purple-600 */
-            color: #fff; /* text-white */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        .btn-primary:hover {
-            background-image: linear-gradient(to right, #db2777, #7e22ce); /* hover:from-pink-600 hover:to-purple-700 */
-        }
-        .btn-secondary {
-            background-color: #e5e7eb; /* bg-gray-200 */
-            color: #1f2937; /* text-gray-800 */
-        }
-        .btn-secondary:hover {
-            background-color: #d1d5db; /* hover:bg-gray-300 */
-            color: #1f2937; /* text-gray-800 */
-        }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col">
+<!-- accounts/templates/accounts/matches.html -->
+{% extends 'accounts/base.html' %}
 
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out z-50 md:hidden">
-        <div class="p-6">
-            <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 mb-6">LOVENY</h2>
-            <ul class="space-y-4">
-                {% if user.is_authenticated %}
-                    <li><a href="{% url 'profile' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">My Profile</a></li>
-                    <li><a href="{% url 'browse_profiles' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Browse Matches</a></li>
-                    <li><a href="{% url 'swipe_profiles' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Swipe</a></li>
-                    <li><a href="{% url 'matches' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">My Matches</a></li>
-                    {% if not user.is_premium %}
-                        <li><a href="{% url 'subscription_plans' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Upgrade</a></li>
-                    {% endif %}
-                    <li>
-                        <form action="{% url 'logout' %}" method="post" class="inline">
-                            {% csrf_token %}
-                            <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer text-lg">
-                                Logout
-                            </button>
-                        </form>
-                    </li>
-                {% else %}
-                    <li><a href="{% url 'login' %}" class="block text-gray-700 hover:text-pink-500 font-medium text-lg">Login</a></li>
-                    <li><a href="{% url 'register' %}" class="btn btn-primary block w-full text-center">Sign Up</a></li>
-                {% endif %}
-            </ul>
-        </div>
+{% block title %}My Matches{% endblock %}
+
+{% block content %}
+<div class="text-center mb-8">
+    <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Your Mutual Matches! 🎉</h1>
+    <p class="text-lg text-gray-600">These are the profiles you've mutually liked.</p>
+</div>
+
+{# Only show this block if there are no matches at all #}
+{% if not has_any_matches %}
+    <div class="bg-white p-6 rounded-2xl shadow-xl text-center">
+        <p class="text-gray-700 text-lg mb-4">You don't have any mutual matches yet.</p>
+        <p class="text-gray-600 mb-6">Keep browsing and liking to find your perfect match!</p>
+        {# Link to Browse Profiles, as Swiping is removed #}
+        <a href="{% url 'browse_profiles' %}" class="btn btn-primary">Browse Profiles</a> 
+        <a href="{% url 'profile_edit' %}" class="btn btn-secondary ml-4">Edit My Preferences</a> {# Added edit profile for convenience #}
     </div>
-
-    <div id="overlay" class="fixed inset-0 bg-black opacity-0 transition-opacity duration-300 ease-in-out z-40 hidden"></div>
-
-    <div class="flex-grow flex flex-col">
-        <header class="bg-white shadow-md py-4 z-20"> {# Increased z-index to be above content #}
-            <nav class="container flex justify-between items-center">
-                <div class="md:hidden">
-                    <button id="mobile-menu-button" class="text-gray-700 focus:outline-none focus:text-pink-500">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
-                    </button>
-                </div>
-
-                <ul class="hidden md:flex md:space-x-6">
-                    {% if user.is_authenticated %}
-                        <li><a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Profile</a></li>
-                        <li><a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Browse Matches</a></li>
-                        <li><a href="{% url 'swipe_profiles' %}" class="text-gray-700 hover:text-pink-500 font-medium">Swipe</a></li>
-                        <li><a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-500 font-medium">My Matches</a></li>
-                        {% if not user.is_premium %}
-                            <li><a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-500 font-medium">Upgrade</a></li>
-                        {% endif %}
-                        <li>
-                            <form action="{% url 'logout' %}" method="post" class="inline">
-                                {% csrf_token %}
-                                <button type="submit" class="text-gray-700 hover:text-pink-500 font-medium bg-transparent border-none p-0 cursor-pointer">
-                                    Logout
-                                </button>
-                            </form>
-                        </li>
+{% else %}
+    {# Display all matches in a single grid #}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {% for profile in matches %} {# Loop directly over the combined 'matches' context variable #}
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col items-center p-6 text-center transition-transform transform hover:scale-105 duration-200 ease-in-out">
+                <a href="{% url 'view_other_profile' username=profile.username %}" class="relative flex flex-col items-center">
+                    {% if profile.profile_picture %}
+                        <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
+                             class="w-32 h-32 object-cover rounded-full border-4 border-pink-400">
                     {% else %}
-                        <li><a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-500 font-medium">Login</a></li>
-                        <li><a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a></li>
+                        <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-5xl font-bold border-4 border-gray-300">
+                            {{ profile.username.0|upper }}
+                        </div>
                     {% endif %}
-                </ul>
-            </nav>
-        </header>
+                    {% if profile.is_premium %}
+                        <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg transform rotate-6">
+                            VIP
+                        </span>
+                    {% endif %}
+                </a>
+                
+                <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ profile.username }}</h2>
+                <p class="text-gray-600 mb-3">{{ profile.get_full_name|default:"No Name" }}</p>
 
-        <main class="flex-grow container py-8">
-            {% if messages %}
-                <ul class="messages mb-4">
-                    {% for message in messages %}
-                        <li {% if message.tags %} class="{{ message.tags }} p-3 rounded-md text-sm {% if 'success' in message.tags %}bg-green-100 text-green-700{% elif 'error' in message.tags %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}"{% endif %}>
-                            {{ message }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            {% block content %}
-            {% endblock content %}
-        </main>
-
-        <footer class="bg-gray-800 text-white py-6 mt-auto">
-            <div class="container text-center text-sm">
-                &copy; 2025 LOVENY. All rights reserved.
+                <div class="text-gray-700 text-sm mb-4">
+                    {% if profile.get_age %}<p>Age: {{ profile.get_age }}</p>{% endif %}
+                    {% if profile.location %}<p>Location: {{ profile.location }}</p>{% endif %} {# Corrected syntax #}
+                    <p>Looking for: {{ profile.get_user_type_display }}</p>
+                </div>
+                
+                <div class="mt-auto flex justify-center gap-3">
+                    <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-primary btn-sm">
+                        View Profile
+                    </a>
+                    {# The "Message" button here will lead to the profile page where WhatsApp contact is handled #}
+                    <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-secondary btn-sm">
+                        Message
+                    </a>
+                </div>
             </div>
-        </footer>
+        {% endfor %}
     </div>
+{% endif %}
 
-    <script>
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('overlay');
-
-        if (mobileMenuButton && sidebar && overlay) {
-            mobileMenuButton.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full'); // Slide sidebar in/out
-                overlay.classList.toggle('hidden'); // Show/hide overlay
-                overlay.classList.toggle('opacity-0'); // Transition opacity
-                overlay.classList.toggle('opacity-50'); // Set opacity when visible
-            });
-
-            overlay.addEventListener('click', () => {
-                sidebar.classList.add('-translate-x-full'); // Slide sidebar out
-                overlay.classList.add('hidden'); // Hide overlay
-                overlay.classList.add('opacity-0'); // Reset opacity
-                overlay.classList.remove('opacity-50');
-            });
-            
-            // Close sidebar when a navigation link is clicked (optional, but good UX)
-            sidebar.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', () => {
-                    sidebar.classList.add('-translate-x-full');
-                    overlay.classList.add('hidden');
-                    overlay.classList.add('opacity-0');
-                    overlay.classList.remove('opacity-50');
-                });
-            });
-            sidebar.querySelectorAll('form button').forEach(button => {
-                button.addEventListener('click', () => {
-                    // Do not close immediately for form submission, let it naturally navigate
-                    // You might want to remove this if navigation doesn't happen quickly
-                    sidebar.classList.add('-translate-x-full');
-                    overlay.classList.add('hidden');
-                    overlay.classList.add('opacity-0');
-                    overlay.classList.remove('opacity-50');
-                });
-            });
-        }
-    </script>
-</body>
-</html>
+{% endblock content %}

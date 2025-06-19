@@ -1,27 +1,41 @@
-<!-- templates/accounts/homepage.html -->
+<!-- accounts/templates/accounts/homepage.html -->
 {% extends 'accounts/base.html' %}
 
 {% block title %}Welcome to LOVENY{% endblock %}
 
 {% block content %}
-<div class="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center px-4">
+<div class="text-center py-16 px-4">
     <h1 class="text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
-        Find Your Perfect Match on <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</span>
+        Find Your Perfect Connection on <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</span>
     </h1>
-    <p class="text-xl text-gray-600 mb-8 max-w-2xl">
-        Whether you're looking for dating, hookups, a sugar daddy, or a sugar mummy, LOVENY connects you with people who understand your needs and desires.
+    <p class="text-xl text-gray-700 mb-10 max-w-2xl mx-auto">
+        LOVENY is the leading dating platform for genuine connections, hookups, and sugar relationships in Nigeria. Discover profiles, chat securely, and find your ideal match.
     </p>
+
     <div class="space-x-4">
-        {% if not user.is_authenticated %}
-            <!-- Buttons for unauthenticated users -->
-            <a href="{% url 'register' %}" class="btn btn-primary text-lg">Join LOVENY Now</a>
-            <a href="{% url 'login' %}" class="btn btn-secondary text-lg">Log In</a>
+        {% if user.is_authenticated %}
+            {# Replaced "Start Swiping" with "Browse Profiles" #}
+            <a href="{% url 'browse_profiles' %}" class="btn btn-primary btn-lg">Browse Profiles</a>
+            <a href="{% url 'matches' %}" class="btn btn-secondary btn-lg">View Matches</a>
         {% else %}
-            <!-- Message and buttons for authenticated users -->
-            <p class="text-lg text-gray-700">Welcome back, <span class="font-semibold">{{ user.username }}</span>!</p>
-            <a href="{% url 'profile' %}" class="btn btn-primary text-lg mt-4 inline-block">Go to My Profile</a>
-            <a href="{% url 'browse_profiles' %}" class="btn btn-secondary text-lg mt-4 inline-block">Browse Matches</a>
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">Join LOVENY Now!</a>
+            <a href="{% url 'login' %}" class="btn btn-secondary btn-lg">Log In</a>
         {% endif %}
+    </div>
+
+    <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+            <h3 class="text-2xl font-bold text-pink-600 mb-3">💖 Dating</h3>
+            <p class="text-gray-700">Find serious relationships and long-term partners who share your values.</p>
+        </div>
+        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+            <h3 class="text-2xl font-bold text-purple-600 mb-3">🔥 Hookups</h3>
+            <p class="text-gray-700">For casual encounters and spontaneous fun with like-minded individuals.</p>
+        </div>
+        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+            <h3 class="text-2xl font-bold text-yellow-600 mb-3">💎 Sugar Relationships</h3>
+            <p class="text-gray-700">Connect with generous benefactors or ambitious companions.</p>
+        </div>
     </div>
 </div>
 {% endblock content %}

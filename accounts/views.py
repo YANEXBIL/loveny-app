@@ -1,20 +1,21 @@
 # accounts/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login
+from django.contrib.auth import login # Import login function (logout is a class-based view)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views.generic import CreateView
-from django.urls import reverse_lazy
-from django.http import JsonResponse, HttpResponse
-from django.db.models import Q
-from django.conf import settings
-import requests
+from django.urls import reverse_lazy # For redirecting to a URL by name
+from django.http import JsonResponse, HttpResponse # For AJAX responses and general HTTP responses
+from django.db.models import Q # For complex queries
+from django.conf import settings # Import settings to access API keys
+import requests # For making HTTP requests to generate WhatsApp link
 import json
 import os
 from django.contrib import messages
 from datetime import timedelta
 
+# Import all models and forms
 from .forms import CustomUserCreationForm, UserProfileForm
 from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction
 
@@ -198,40 +199,8 @@ def matches_view(request):
     return render(request, 'accounts/matches.html', context)
 
 
-@login_required
-def swipe_profiles_view(request):
-    """Displays a single profile for the user to swipe left (dislike) or right (like)."""
-    current_user = request.user
-    interacted_profile_ids = set(
-        Like.objects.filter(liker=current_user).values_list('liked_user__id', flat=True)
-    )
-    interacted_profile_ids.update(
-        Like.objects.filter(liked_user=current_user).values_list('liker__id', flat=True)
-    )
-
-    candidate_profiles = UserProfile.objects.exclude(id=current_user.id).exclude(id__in=list(interacted_profile_ids))
-
-    current_user_seeking = current_user.user_type
-    if current_user_seeking == 'DATING':
-        candidate_profiles = candidate_profiles.filter(user_type='DATING')
-    elif current_user_seeking == 'HOOKUP':
-        candidate_profiles = candidate_profiles.filter(user_type='HOOKUP')
-    elif current_user_seeking == 'SUGAR_DADDY':
-        candidate_profiles = candidate_profiles.filter(Q(user_type='SUGAR_MUMMY') | Q(user_type='DATING'))
-    elif current_user_seeking == 'SUGAR_MUMMY':
-        candidate_profiles = candidate_profiles.filter(Q(user_type='SUGAR_DADDY') | Q(user_type='DATING'))
-
-    next_profile = candidate_profiles.order_by('?').first()
-
-    context = {
-        'profile': next_profile,
-        'current_user': current_user
-    }
-
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return render(request, 'accounts/includes/profile_card_partial.html', context)
-    else:
-        return render(request, 'accounts/swipe_profiles.html', context)
+# Removed: chat_room_view and message_gate_view
+# REMOVED: swipe_profiles_view
 
 
 # --- Payment Views (Remain the same) ---
@@ -241,9 +210,6 @@ def subscription_plans_view(request):
     """
     Displays available subscription plans.
     """
-    # Assuming you will manage these plans in your admin interface to match prices and durations.
-    # E.g., create a plan named "Weekly Premium" with price 1000 and duration_days 7.
-    # And a plan named "Monthly Premium" with price 4000 and duration_days 30.
     plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price')
     context = {
         'plans': plans
