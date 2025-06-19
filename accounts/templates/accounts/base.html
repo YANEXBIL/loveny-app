@@ -1,65 +1,186 @@
-<!-- accounts/templates/accounts/matches.html -->
-{% extends 'accounts/base.html' %}
-
-{% block title %}My Matches{% endblock %}
-
-{% block content %}
-<div class="text-center mb-8">
-    <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Your Mutual Matches! 🎉</h1>
-    <p class="text-lg text-gray-600">These are the profiles you've mutually liked.</p>
-</div>
-
-{# Only show this block if there are no matches at all #}
-{% if not has_any_matches %}
-    <div class="bg-white p-6 rounded-2xl shadow-xl text-center">
-        <p class="text-gray-700 text-lg mb-4">You don't have any mutual matches yet.</p>
-        <p class="text-gray-600 mb-6">Keep browsing and liking to find your perfect match!</p>
-        {# Link to Browse Profiles, as Swiping is removed #}
-        <a href="{% url 'browse_profiles' %}" class="btn btn-primary">Browse Profiles</a> 
-        <a href="{% url 'profile_edit' %}" class="btn btn-secondary ml-4">Edit My Preferences</a> {# Added edit profile for convenience #}
-    </div>
-{% else %}
-    {# Display all matches in a single grid #}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {% for profile in matches %} {# Loop directly over the combined 'matches' context variable #}
-            <div class="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col items-center p-6 text-center transition-transform transform hover:scale-105 duration-200 ease-in-out">
-                <a href="{% url 'view_other_profile' username=profile.username %}" class="relative flex flex-col items-center">
-                    {% if profile.profile_picture %}
-                        <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
-                             class="w-32 h-32 object-cover rounded-full border-4 border-pink-400">
-                    {% else %}
-                        <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-5xl font-bold border-4 border-gray-300">
-                            {{ profile.username.0|upper }}
-                        </div>
-                    {% endif %}
-                    {% if profile.is_premium %}
-                        <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg transform rotate-6">
-                            VIP
-                        </span>
-                    {% endif %}
-                </a>
-                
-                <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ profile.username }}</h2>
-                <p class="text-gray-600 mb-3">{{ profile.get_full_name|default:"No Name" }}</p>
-
-                <div class="text-gray-700 text-sm mb-4">
-                    {% if profile.get_age %}<p>Age: {{ profile.get_age }}</p>{% endif %}
-                    {% if profile.location %}<p>Location: {{ profile.location }}</p>{% endif %} {# Corrected syntax #}
-                    <p>Looking for: {{ profile.get_user_type_display }}</p>
-                </div>
-                
-                <div class="mt-auto flex justify-center gap-3">
-                    <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-primary btn-sm">
-                        View Profile
-                    </a>
-                    {# The "Message" button here will lead to the profile page where WhatsApp contact is handled #}
-                    <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-secondary btn-sm">
-                        Message
-                    </a>
-                </div>
+<!-- accounts/templates/accounts/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOVENY - {% block title %}{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .btn {
+            @apply font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 ease-in-out;
+        }
+        .btn-primary {
+            @apply bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+        }
+        .btn-lg {
+            @apply px-6 py-3 text-lg;
+        }
+        .btn-sm {
+            @apply px-3 py-1 text-sm;
+        }
+        /* Style for messages */
+        .messages {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .messages li {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .messages .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .messages .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .messages .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .messages .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f0f2f5;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <header class="bg-white shadow-sm py-4 px-6">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="{% url 'homepage' %}" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</a>
+            
+            {# Desktop Navigation - Hidden on small screens #}
+            <div class="hidden md:flex space-x-6 items-center">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Profile</a>
+                    <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Browse</a>
+                    <a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Matches</a>
+                    <a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Plans</a>
+                    <a href="{% url 'logout' %}" class="btn btn-secondary">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a>
+                {% endif %}
             </div>
-        {% endfor %}
-    </div>
-{% endif %}
 
-{% endblock content %}
+            {# Mobile Menu Toggle - Visible on small screens #}
+            <div class="md:hidden">
+                <button id="mobile-menu-toggle" class="text-gray-700 hover:text-pink-600 focus:outline-none">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        {# Mobile Menu Content - Now slides in from the right #}
+        <div id="mobile-menu" class="md:hidden fixed top-0 right-0 h-full w-64 bg-white shadow-xl py-4 px-6 z-50 transform translate-x-full transition-transform duration-300 ease-in-out">
+            <div class="flex flex-col space-y-4">
+                {# Add a close button for the sidebar #}
+                <div class="flex justify-end mb-4">
+                    <button id="mobile-menu-close" class="text-gray-700 hover:text-pink-600 focus:outline-none">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Profile</a>
+                    <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Browse</a>
+                    <a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Matches</a>
+                    <a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Plans</a>
+                    <a href="{% url 'logout' %}" class="btn btn-secondary w-full">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-primary w-full">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto py-8 px-4">
+        {# Django Messages Framework #}
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li {% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}
+        {# Content from child templates will go here #}
+        {% endblock content %}
+    </main>
+
+    <footer class="bg-white shadow-inner py-6 mt-auto text-center text-gray-600 text-sm">
+        <p>&copy; 2025 LOVENY. All rights reserved.</p>
+        <p>Made with ❤️ in Nigeria.</p>
+    </footer>
+
+    {% block extra_js %}
+    {# Additional JavaScript can be added here by child templates #}
+    {% endblock extra_js %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuClose = document.getElementById('mobile-menu-close'); // New close button
+
+            if (mobileMenuToggle && mobileMenu) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    mobileMenu.classList.remove('translate-x-full'); // Slide in
+                });
+
+                // New event listener for the close button
+                if (mobileMenuClose) {
+                    mobileMenuClose.addEventListener('click', function() {
+                        mobileMenu.classList.add('translate-x-full'); // Slide out
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
