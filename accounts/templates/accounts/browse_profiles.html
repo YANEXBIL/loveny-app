@@ -1,62 +1,62 @@
-<!-- accounts/templates/accounts/browse_profiles.html -->
+<!-- templates/accounts/browse_profiles.html -->
 {% extends 'accounts/base.html' %}
 
-{% block title %}Browse Profiles{% endblock %}
+{% block title %}Browse LOVENY Profiles{% endblock %}
 
 {% block content %}
-<div class="container mx-auto p-4">
-    <div class="text-center mb-8">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Discover New Profiles! 🌍</h1>
-        <p class="text-lg text-gray-600">Find people looking for {{ current_user_type }} relationships.</p>
-    </div>
-
-    {% if not profiles_data %}
-        <div class="bg-white p-6 rounded-2xl shadow-xl text-center">
-            <p class="text-gray-700 text-lg mb-4">No profiles available right now.</p>
-            <p class="text-gray-600 mb-6">Try adjusting your preferences or check back later!</p>
-            <a href="{% url 'profile_edit' %}" class="btn btn-primary">Edit My Preferences</a>
-        </div>
-    {% else %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% for data in profiles_data %}
-                {% with profile=data.profile has_liked=data.has_liked is_matched=data.is_matched %}
-                <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center text-center transform hover:scale-105 transition duration-300 ease-in-out">
-                    <a href="{% url 'view_other_profile' username=profile.username %}" class="relative flex flex-col items-center">
-                        {% if profile.profile_picture %}
-                            <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
-                                 class="w-32 h-32 object-cover rounded-full border-4 border-pink-400 shadow-md mb-4">
-                        {% else %}
-                            <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-4xl font-bold border-4 border-gray-300 mb-4">
-                                {{ profile.username.0|upper }}
-                            </div>
-                        {% endif %}
-                        <h3 class="text-2xl font-semibold text-gray-900 mb-2">{{ profile.username }}</h3>
-                        {% if profile.is_premium %}
-                            <span class="absolute top-0 right-0 mt-1 mr-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md">
-                                VIP
-                            </span>
-                        {% endif %}
-                    </a>
-                    <p class="text-gray-700 mb-2">
-                        {% if profile.get_age %}{{ profile.get_age }} years old{% else %}Age not set{% endif %}
-                        {% if profile.location %}, {{ profile.location }}{% endif %}
-                    </p>
-                    <p class="text-sm text-gray-600 mb-4 italic">{{ profile.get_user_type_display }}</p>
-                    <p class="text-gray-800 text-sm overflow-hidden text-ellipsis h-12">{{ profile.bio|truncatechars:100 }}</p>
-                    
-                    <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-                        <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-primary">View Profile</a>
-                        {# "Message" button should only be enabled if it's a mutual match #}
-                        {# If you still want a message button on browse, it should link to view_other_profile,
-                           where premium status is checked for WhatsApp link #}
-                        <a href="{% url 'like_user' username=profile.username %}" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
-                            {% if has_liked %}Unlike{% else %}Like{% endif %}
-                        </a>
-                    </div>
-                </div>
-                {% endwith %}
-            {% endfor %}
-        </div>
-    {% endif %}
+<div class="text-center mb-8">
+    <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Discover Your Next Connection</h1>
+    <p class="text-lg text-gray-600">Explore profiles based on your preferences.</p>
+    <p class="text-md text-gray-500 mt-2">Your current user type: <span class="font-semibold text-pink-500">{{ current_user_type|title }}</span></p>
 </div>
+
+{% if profiles_data %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for data in profiles_data %}
+        {% with profile=data.profile has_liked=data.has_liked is_matched=data.is_matched %}
+        <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center text-center transform hover:scale-105 transition duration-300 ease-in-out">
+            <a href="{% url 'view_other_profile' username=profile.username %}" class="relative flex flex-col items-center"> {# Added relative for badge #}
+                {% if profile.profile_picture %}
+                    <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
+                         class="w-32 h-32 object-cover rounded-full border-4 border-purple-400 shadow-md mb-4">
+                {% else %}
+                    <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-4xl font-bold border-4 border-gray-300 mb-4">
+                        {{ profile.username.0|upper }}
+                    </div>
+                {% endif %}
+                <h3 class="text-2xl font-semibold text-gray-900 mb-2">{{ profile.username }}</h3>
+                {% if profile.is_premium %}
+                    {# VIP Badge for Browse Profiles #}
+                    <span class="absolute top-0 right-0 mt-1 mr-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md">
+                        VIP
+                    </span>
+                {% endif %}
+            </a>
+            <p class="text-gray-700 mb-2">
+                {% if profile.get_age %}{{ profile.get_age }} years old{% else %}Age not set{% endif %}
+                {% if profile.location %}, {{ profile.location }}{% endif %}
+            </p>
+            <p class="text-sm text-gray-600 mb-4 italic">{{ profile.get_user_type_display }}</p>
+            <p class="text-gray-800 text-sm overflow-hidden text-ellipsis h-12">{{ profile.bio|truncatechars:100 }}</p>
+
+            <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                {% if is_matched %}
+                    <span class="btn bg-green-500 text-white cursor-default">Matched! 🎉</span>
+                {% else %}
+                    <form action="{% url 'like_user' username=profile.username %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
+                            {% if has_liked %}Unlike{% else %}Like{% endif %}
+                        </button>
+                    </form>
+                {% endif %}
+                <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-secondary">View Profile</a>
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-center text-lg text-gray-600 mt-12">No other profiles found at the moment. Check back later!</p>
+{% endif %}
 {% endblock content %}
