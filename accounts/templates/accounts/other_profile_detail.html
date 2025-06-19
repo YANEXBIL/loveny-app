@@ -1,96 +1,105 @@
-<!-- accounts/templates/accounts/other_profile_detail.html -->
-{% extends 'accounts/base.html' %}
-
-{% block title %}{{ profile.username }}'s Profile{% endblock %}
-
-{% block content %}
-<div class="flex justify-center items-center min-h-[calc(100vh-140px)] px-4 py-6 md:py-10"> {# Adjusted min-h and added vertical padding #}
-    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8"> {# Added responsive padding, adjusted gap #}
-        <div class="flex-shrink-0 relative mb-4 md:mb-0"> {# Added relative for badge positioning, responsive margin #}
-            {% if profile.profile_picture %}
-                <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
-                     class="w-36 h-36 md:w-48 md:h-48 object-cover rounded-full border-4 border-pink-400 shadow-md"> {# Responsive image size #}
-            {% else %}
-                <div class="w-36 h-36 md:w-48 md:h-48 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-5xl md:text-6xl font-bold border-4 border-gray-300"> {# Responsive size and text #}
-                    {{ profile.username.0|upper }}
-                </div>
-            {% endif %}
-
-            {% if profile.is_premium %}
-                <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
-                    VIP
-                </span>
-            {% endif %}
-        </div>
-
-        <div class="flex-grow text-center md:text-left w-full"> {# Ensure text content takes full width on small screens #}
-            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">{{ profile.username }}</h2> {# Responsive text size #}
-            <p class="text-lg md:text-xl text-gray-700 mb-4">{{ profile.get_full_name|default:"No Name" }}</p> {# Responsive text size #}
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 text-gray-800"> {# Adjusted gap for better mobile spacing #}
-                {% if profile.date_of_birth %}
-                    <p class="flex items-center text-sm sm:text-base"><strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">Age:</strong> <span class="flex-grow">{{ profile.get_age }}</span></p> {# Responsive text size, fixed width for strong #}
-                {% endif %}
-                {% if profile.gender %}
-                    <p class="flex items-center text-sm sm:text-base"><strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">Gender:</strong> <span class="flex-grow">{{ profile.get_gender_display }}</span></p>
-                {% endif %}
-                {% if profile.location %}
-                    <p class="flex items-center text-sm sm:text-base"><strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">Location:</strong> <span class="flex-grow">{{ profile.location }}</span></p>
-                {% endif %}
-                {% if profile.user_type %}
-                    <p class="flex items-center text-sm sm:text-base"><strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">User Type:</strong> <span class="flex-grow">{{ profile.get_user_type_display }}</span></p>
-                {% endif %}
-                {% if profile.seeking %}
-                    <p class="flex items-center text-sm sm:text-base"><strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">Seeking:</strong> <span class="flex-grow">{{ profile.get_seeking_display }}</span></p>
-                {% endif %}
-                
-                {# Display and blur phone number based on premium status #}
-                {% if profile.phone_number %}
-                    <p class="flex items-center text-sm sm:text-base">
-                        <strong class="w-20 sm:w-24 text-gray-600 flex-shrink-0">WhatsApp:</strong> 
-                        <span class="{% if not request.user.is_premium %}blur-sm{% endif %} flex-grow">
-                            {{ profile.phone_number }}
-                        </span>
-                    </p>
-                {% endif %}
+<!-- accounts/includes/profile_card_partial.html -->
+{% if profile %}
+<div id="profile-card" data-username="{{ profile.username }}" class="absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center text-center transition-transform transform duration-300 ease-out">
+    
+    {# Image Cycler Section #}
+    <div class="relative w-48 h-48 md:w-56 md:h-56 mb-4 rounded-full overflow-hidden border-4 border-pink-400 shadow-md flex-shrink-0">
+        {% for image in all_profile_images %}
+            <img src="{{ image.url }}" 
+                 alt="{{ profile.username }}'s Image {{ forloop.counter }}"
+                 class="profile-cycler-img absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out {% if not forloop.first %}opacity-0{% endif %}"
+                 data-image-index="{{ forloop.counter0 }}">
+        {% empty %}
+            {# Fallback if no images #}
+            <div class="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-5xl md:text-6xl font-bold">
+                {{ profile.username.0|upper }}
             </div>
-
-            {% if profile.bio %}
-                <div class="mb-6 text-sm sm:text-base"> {# Responsive text size #}
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">About Me:</h3>
-                    <p class="text-gray-800 leading-relaxed">{{ profile.bio }}</p>
-                </div>
-            {% endif %}
-
-            <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-3 sm:gap-4 w-full"> {# Adjusted gap, full width on small screens #}
-                {# Display Like/Unlike button based on status #}
-                <form action="{% url 'like_user' username=profile.username %}" method="post" class="w-full sm:w-auto inline-block"> {# Full width on mobile #}
-                    {% csrf_token %}
-                    <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %} w-full"> {# Full width button #}
-                        {% if has_liked %}Unlike{% else %}Like{% endif %}
-                    </button>
-                </form>
-
-                {# Message on WhatsApp button - conditional display and link #}
-                {% if profile.phone_number %}
-                    {% if request.user.is_premium %}
-                        <a href="{{ whatsapp_link }}" target="_blank" class="btn btn-primary bg-green-500 hover:bg-green-600 w-full sm:w-auto"> {# Full width button #}
-                            Message on WhatsApp
-                        </a>
-                    {% else %}
-                        <button class="btn btn-primary bg-green-500 opacity-70 cursor-not-allowed w-full sm:w-auto" disabled> {# Full width button #}
-                            Unlock WhatsApp Messaging (Premium)
-                        </button>
-                        {# Optional: Add a link to subscription plans #}
-                        <a href="{% url 'subscription_plans' %}" class="btn btn-secondary w-full sm:w-auto mt-2 sm:mt-0">Upgrade Now</a> {# Full width button, responsive margin #}
-                    {% endif %}
-                {% else %}
-                    <button class="btn btn-secondary cursor-not-allowed opacity-70 w-full sm:w-auto" disabled> {# Full width button #}
-                        No WhatsApp number (from {{ profile.username }})
-                    </button>
-                {% endif %}
-            </div>
+        {% endfor %}
+        
+        {# Navigation dots for swipe card images (optional, if you want visual indicators) #}
+        {% if all_profile_images.count > 1 %}
+        <div class="absolute bottom-2 left-0 right-0 flex justify-center space-x-1">
+            {% for image in all_profile_images %}
+            <span class="profile-cycler-dot w-2 h-2 bg-white rounded-full cursor-pointer opacity-50 {% if forloop.first %}opacity-100{% endif %}" data-dot-index="{{ forloop.counter0 }}"></span>
+            {% endfor %}
         </div>
+        {% endif %}
     </div>
+
+    <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ profile.username }}</h2>
+    <p class="text-gray-600 mb-3">{{ profile.get_full_name|default:"No Name" }}</p>
+
+    <div class="text-gray-700 text-base mb-4">
+        {% if profile.get_age %}<p>Age: {{ profile.get_age }}</p>{% endif %}
+        {% if profile.location %}<p>Location: {{ profile.location }}</p>{% endif %}
+        <p>Looking for: {{ profile.get_user_type_display }}</p>
+    </div>
+    
+    <p class="text-gray-800 text-sm overflow-hidden text-ellipsis h-24 mb-4">{{ profile.bio|truncatechars:200 }}</p>
+
+    {# Like/Nope Overlays - these are controlled by swipe_profiles.html's JS #}
+    <div class="absolute top-4 left-4 border-4 border-green-500 text-green-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[-15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="like-overlay">
+        LIKE
+    </div>
+    <div class="absolute top-4 right-4 border-4 border-red-500 text-red-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="nope-overlay">
+        NOPE
+    </div>
+
 </div>
-{% endblock content %}
+{% else %}
+<div id="profile-card" class="absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center text-center">
+    <p class="text-gray-700 text-xl font-semibold mb-4">No more profiles to swipe on!</p>
+    <p class="text-gray-600 mb-6">Come back later or adjust your preferences.</p>
+    <a href="{% url 'browse_profiles' %}" class="btn btn-primary">Browse All Profiles</a>
+    <a href="{% url 'profile_edit' %}" class="btn btn-secondary mt-3">Edit My Preferences</a>
+</div>
+{% endif %}
+
+{# JavaScript for image cycling within the partial #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const profileCard = document.getElementById('profile-card');
+        if (profileCard) {
+            const images = Array.from(profileCard.querySelectorAll('.profile-cycler-img'));
+            const dots = Array.from(profileCard.querySelectorAll('.profile-cycler-dot'));
+            let currentImageIndex = 0;
+            let cycleInterval;
+
+            function showCyclerImage(index) {
+                images.forEach((img, i) => {
+                    img.classList.add('opacity-0');
+                    if (dots[i]) dots[i].classList.remove('opacity-100');
+                    if (dots[i]) dots[i].classList.add('opacity-50');
+                });
+
+                if (images[index]) images[index].classList.remove('opacity-0');
+                if (dots[index]) dots[index].classList.remove('opacity-50');
+                if (dots[index]) dots[index].classList.add('opacity-100');
+            }
+
+            function nextCyclerImage() {
+                currentImageIndex = (currentImageIndex + 1) % images.length;
+                showCyclerImage(currentImageIndex);
+            }
+
+            function startImageCycle() {
+                if (images.length > 1) {
+                    cycleInterval = setInterval(nextCyclerImage, 3000); // Cycle every 3 seconds
+                }
+            }
+
+            function stopImageCycle() {
+                clearInterval(cycleInterval);
+            }
+
+            if (images.length > 0) {
+                showCyclerImage(currentImageIndex);
+                startImageCycle();
+
+                // Optional: Stop cycle on hover (though this might conflict with swipe drag)
+                // profileCard.addEventListener('mouseenter', stopImageCycle);
+                // profileCard.addEventListener('mouseleave', startImageCycle);
+            }
+        }
+    });
+</script>

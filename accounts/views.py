@@ -1,23 +1,23 @@
 # accounts/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login # Import login function (logout is a class-based view)
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views.generic import CreateView
-from django.urls import reverse_lazy # For redirecting to a URL by name
-from django.http import JsonResponse, HttpResponse # For AJAX responses and general HTTP responses
-from django.db.models import Q # For complex queries
-from django.conf import settings # Import settings to access API keys
-import requests # For making HTTP requests to generate WhatsApp link
+from django.urls import reverse_lazy
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Q
+from django.conf import settings
+import requests
 import json
 import os
 from django.contrib import messages
 from datetime import timedelta
 
 # Import all models and forms
-from .forms import CustomUserCreationForm, UserProfileForm
-from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction
+from .forms import CustomUserCreationForm, UserProfileForm, ProfileImageFormSet # Import ProfileImageFormSet
+from .models import UserProfile, Like, SubscriptionPlan, UserSubscription, PaymentTransaction, ProfileImage # Import ProfileImage
 
 
 class CustomLoginView(LoginView):
@@ -52,15 +52,19 @@ def profile_edit_view(request):
     user_profile = request.user
     if request.method == 'POST':
         form = UserProfileForm(request.POST, request.FILES, instance=user_profile)
-        if form.is_valid():
+        formset = ProfileImageFormSet(request.POST, request.FILES, instance=user_profile)
+
+        if form.is_valid() and formset.is_valid():
             form.save()
+            formset.save() # This saves new images and deletes marked ones
             messages.success(request, "Your profile has been updated!")
             return redirect('profile')
         else:
             messages.error(request, "Please correct the errors below.")
     else:
         form = UserProfileForm(instance=user_profile)
-    return render(request, 'accounts/profile_edit.html', {'form': form})
+        formset = ProfileImageFormSet(instance=user_profile)
+    return render(request, 'accounts/profile_edit.html', {'form': form, 'formset': formset})
 
 def homepage_view(request):
     """The main landing page for the LOVENY app."""
@@ -88,7 +92,8 @@ def browse_profiles_view(request):
         is_matched = Like.objects.filter(
             Q(liker=current_user, liked_user=profile) & Q(liker=profile, liked_user=current_user)
         ).exists()
-
+        
+        # Only fetch main profile picture for browse view to keep it light
         profiles_data.append({
             'profile': profile,
             'has_liked': has_liked,
@@ -107,6 +112,7 @@ def view_other_profile(request, username):
     """
     Displays a specific user's profile detail.
     Includes logic to generate a WhatsApp chat link ONLY if current_user is premium.
+    Now also passes all profile images.
     """
     current_user = request.user
     profile = get_object_or_404(UserProfile, username=username)
@@ -129,12 +135,19 @@ def view_other_profile(request, username):
     elif not current_user.is_premium:
         messages.info(request, "Upgrade to premium to message other users on WhatsApp!")
 
+    # Fetch all images for the profile, including the main one
+    all_profile_images = []
+    if profile.profile_picture:
+        all_profile_images.append(profile.profile_picture)
+    all_profile_images.extend(profile.additional_images.all().order_by('uploaded_at'))
+
 
     context = {
         'profile': profile,
         'has_liked': has_liked,
         'is_matched': is_matched,
         'whatsapp_link': whatsapp_link, # Will be None if not premium or no phone number
+        'all_profile_images': all_profile_images, # Pass all images
     }
     return render(request, 'accounts/other_profile_detail.html', context)
 
@@ -199,8 +212,50 @@ def matches_view(request):
     return render(request, 'accounts/matches.html', context)
 
 
-# Removed: chat_room_view and message_gate_view
-# REMOVED: swipe_profiles_view
+@login_required
+def swipe_profiles_view(request):
+    """Displays a single profile for the user to swipe left (dislike) or right (like).
+    Now also passes all profile images for the swiped profile."""
+    current_user = request.user
+    interacted_profile_ids = set(
+        Like.objects.filter(liker=current_user).values_list('liked_user__id', flat=True)
+    )
+    interacted_profile_ids.update(
+        Like.objects.filter(liked_user=current_user).values_list('liker__id', flat=True)
+    )
+
+    candidate_profiles = UserProfile.objects.exclude(id=current_user.id).exclude(id__in=list(interacted_profile_ids))
+
+    current_user_seeking = current_user.user_type
+    if current_user_seeking == 'DATING':
+        candidate_profiles = candidate_profiles.filter(user_type='DATING')
+    elif current_user_seeking == 'HOOKUP':
+        candidate_profiles = candidate_profiles.filter(user_type='HOOKUP')
+    elif current_user_seeking == 'SUGAR_DADDY':
+        candidate_profiles = candidate_profiles.filter(Q(user_type='SUGAR_MUMMY') | Q(user_type='DATING'))
+    elif current_user_seeking == 'SUGAR_MUMMY':
+        candidate_profiles = candidate_profiles.filter(Q(user_type='SUGAR_DADDY') | Q(user_type='DATING'))
+
+    next_profile = candidate_profiles.order_by('?').first()
+
+    # Fetch all images for the next profile, including the main one
+    all_profile_images = []
+    if next_profile:
+        if next_profile.profile_picture:
+            all_profile_images.append(next_profile.profile_picture)
+        all_profile_images.extend(next_profile.additional_images.all().order_by('uploaded_at'))
+
+
+    context = {
+        'profile': next_profile,
+        'current_user': current_user,
+        'all_profile_images': all_profile_images, # Pass all images to the swipe template
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'accounts/includes/profile_card_partial.html', context)
+    else:
+        return render(request, 'accounts/swipe_profiles.html', context)
 
 
 # --- Payment Views (Remain the same) ---

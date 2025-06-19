@@ -4,7 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import os
 from datetime import date
-from django.utils import timezone
+from django.utils import timezone # IMPORT THIS LINE FOR MIGRATIONS DEFAULT
 
 
 # Define choices for various profile fields
