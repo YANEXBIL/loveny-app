@@ -1,6 +1,6 @@
 <!-- accounts/templates/accounts/profile_edit.html -->
 {% extends 'accounts/base.html' %}
-{% load tailwind_filters %} {# Keep this line for styling forms #}
+{% load widget_tweaks %} {# CORRECTED: Changed from tailwind_filters to widget_tweaks #}
 
 {% block title %}Edit Profile{% endblock %}
 
@@ -38,7 +38,8 @@
                         <label for="{{ form.profile_picture.id_for_label }}" class="btn btn-secondary cursor-pointer">
                             Change Main Picture
                         </label>
-                        {{ form.profile_picture }}
+                        {# Use add_class filter for cleaner Tailwind integration #}
+                        {{ form.profile_picture|add_class:"hidden" }}
                         {% for error in form.profile_picture.errors %}
                             <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                         {% endfor %}
@@ -63,7 +64,8 @@
                                     </label>
                                 </div>
                                 {{ image_form.id }}
-                                {{ image_form.image.as_hidden }} {# Hidden input for image if not changed #}
+                                {# Hidden input for image if not changed - use as_widget if add_class causes issues here #}
+                                {{ image_form.image|add_class:"hidden" }} 
                             </div>
                         {% endif %}
                     {% endfor %}
@@ -81,7 +83,8 @@
                             <label for="{{ image_form.image.id_for_label }}" class="btn btn-secondary cursor-pointer">
                                 Upload Photo {{ forloop.counter }}
                             </label>
-                            {{ image_form.image }} {# The actual file input, now hidden by CSS in form #}
+                            {# The actual file input, now hidden by CSS in form #}
+                            {{ image_form.image|add_class:"hidden" }}
                             {% for error in image_form.image.errors %}
                                 <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
                             {% endfor %}
@@ -96,14 +99,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.first_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">First Name</label>
-                    {{ form.first_name|field_classes:"form-input" }}
+                    {{ form.first_name|add_class:"form-input" }}
                     {% for error in form.first_name.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.last_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
-                    {{ form.last_name|field_classes:"form-input" }}
+                    {{ form.last_name|add_class:"form-input" }}
                     {% for error in form.last_name.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -113,7 +116,7 @@
             {# Other Profile Fields #}
             <div>
                 <label for="{{ form.bio.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Bio</label>
-                {{ form.bio|field_classes:"form-textarea" }}
+                {{ form.bio|add_class:"form-textarea"|attr:"rows:4" }}
                 {% for error in form.bio.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
@@ -122,14 +125,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.gender.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Gender</label>
-                    {{ form.gender|field_classes:"form-select" }}
+                    {{ form.gender|add_class:"form-select" }}
                     {% for error in form.gender.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.date_of_birth.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Date of Birth</label>
-                    {{ form.date_of_birth|field_classes:"form-input" }}
+                    {{ form.date_of_birth|add_class:"form-input"|attr:"type:date" }}
                     {% for error in form.date_of_birth.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -138,7 +141,7 @@
 
             <div>
                 <label for="{{ form.location.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Location</label>
-                {{ form.location|field_classes:"form-input" }}
+                {{ form.location|add_class:"form-input" }}
                 {% for error in form.location.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
@@ -146,7 +149,7 @@
 
             <div>
                 <label for="{{ form.phone_number.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">WhatsApp Phone Number</label>
-                {{ form.phone_number|field_classes:"form-input" }}
+                {{ form.phone_number|add_class:"form-input" }}
                 <p class="text-gray-500 text-xs italic mt-1">Include country code (e.g., +2348012345678)</p>
                 {% for error in form.phone_number.errors %}
                     <p class="text-red-500 text-xs italic">{{ error }}</p>
@@ -156,14 +159,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="{{ form.user_type.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">User Type</label>
-                    {{ form.user_type|field_classes:"form-select" }}
+                    {{ form.user_type|add_class:"form-select" }}
                     {% for error in form.user_type.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
                 </div>
                 <div>
                     <label for="{{ form.seeking.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Seeking</label>
-                    {{ form.seeking|field_classes:"form-select" }}
+                    {{ form.seeking|add_class:"form-select" }}
                     {% for error in form.seeking.errors %}
                         <p class="text-red-500 text-xs italic">{{ error }}</p>
                     {% endfor %}
@@ -205,15 +208,23 @@
 
         // Additional Gallery Pictures Preview
         const newImagePreviewContainer = document.getElementById('new-image-preview-container');
-        const totalForms = document.getElementById('id_additional_images-TOTAL_FORMS');
-        const initialForms = document.getElementById('id_additional_images-INITIAL_FORMS');
-        const maxNumForms = document.getElementById('id_additional_images-MAX_NUM_FORMS');
+        // Safely get references to formset management elements
+        const totalFormsInput = document.getElementById('id_additional_images-TOTAL_FORMS');
+        const initialFormsInput = document.getElementById('id_additional_images-INITIAL_FORMS');
+        const maxNumFormsInput = document.getElementById('id_additional_images-MAX_NUM_FORMS');
+
 
         // Function to update the display of "Upload Photo" buttons based on filled forms
         function updateAddPhotoButtons() {
-            const currentTotalForms = parseInt(totalForms.value);
-            const currentInitialForms = parseInt(initialForms.value);
-            const currentMaxForms = parseInt(maxNumForms.value);
+            // Add null checks for robustness
+            if (!totalFormsInput || !initialFormsInput || !maxNumFormsInput) {
+                console.warn("Formset management inputs not found. Cannot update photo buttons.");
+                return; // Exit if elements are missing
+            }
+
+            const currentTotalForms = parseInt(totalFormsInput.value);
+            const currentInitialForms = parseInt(initialFormsInput.value);
+            const currentMaxForms = parseInt(maxNumFormsInput.value);
 
             let filledForms = 0;
             // Count existing (not deleted) images
@@ -245,8 +256,12 @@
             });
         }
         
-        // Initial call to set up button visibility
-        updateAddPhotoButtons();
+        // Initial call to set up button visibility, now with null checks for inputs
+        if (totalFormsInput && initialFormsInput && maxNumFormsInput) {
+            updateAddPhotoButtons();
+        } else {
+            console.warn("Formset management inputs missing on DOMContentLoaded. Initial updateAddPhotoButtons skipped.");
+        }
 
 
         document.querySelectorAll('.gallery-upload-field input[type="file"]').forEach(input => {
