@@ -34,7 +34,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-this-in-production-!!!!-and-make-it-long-and-random')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# For local development, you might set DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 DEBUG = False # Set to False for production (important for PythonAnywhere)
 
 # Add your PythonAnywhere domain here
@@ -45,6 +44,7 @@ ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
 
 INSTALLED_APPS = [
     # Removed 'daphne', 'channels', 'channels_redis' as in-app chat is removed
+    # 'tailwind_filters', # <-- THIS LINE MUST BE REMOVED OR COMMENTED OUT
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts', # Your custom accounts app
-    'tailwind_filters', # ADD THIS LINE for form styling
 ]
 
 MIDDLEWARE = [
@@ -135,7 +134,7 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/topics/static-files/
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = '/static/'
 # The directory where `collectstatic` will gather all static files for deployment
