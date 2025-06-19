@@ -34,6 +34,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-this-in-production-!!!!-and-make-it-long-and-random')
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# For local development, you might set DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 DEBUG = False # Set to False for production (important for PythonAnywhere)
 
 # Add your PythonAnywhere domain here
@@ -43,7 +44,7 @@ ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
 # Application definition
 
 INSTALLED_APPS = [
-    # 'tailwind_filters', # Removed as it was causing issues and not available
+    # Removed 'daphne', 'channels', 'channels_redis' as in-app chat is removed
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -51,13 +52,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts', # Your custom accounts app
+    'tailwind_filters', # ADD THIS LINE for form styling
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware', # CSRF Middleware MUST be before AuthenticationMiddleware for security
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -82,6 +84,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'loveny_project.wsgi.application'
+
+# Removed: Django Channels ASGI Application
+# ASGI_APPLICATION = 'loveny_project.asgi.application'
+
+# Removed: Channels Layer configuration
+# CHANNEL_LAYERS = { ... }
+
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -126,7 +135,7 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
+# https://docs.djangoproject.com/en/5.0/topics/static-files/
 
 STATIC_URL = '/static/'
 # The directory where `collectstatic` will gather all static files for deployment
@@ -158,14 +167,5 @@ LOGOUT_REDIRECT_URL = 'login' # Redirect to login page after logout
 
 # Paystack API Keys (Replace with your actual keys!)
 # IMPORTANT: In production, store these securely (e.g., environment variables)
-PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', 'pk_test_your_paystack_public_key')
-PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_your_paystack_secret_key')
-
-
-# --- CSRF and HTTPS Fixes for PythonAnywhere ---
-# Required for correct HTTPS detection when behind a proxy like PythonAnywhere
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-# Ensure CSRF and Session cookies are only sent over HTTPS
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-# --- End CSRF and HTTPS Fixes ---
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', 'pk_test_your_paystack_public_key') # <--- LOAD FROM ENV
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_your_paystack_secret_key') # <--- LOAD FROM ENV
