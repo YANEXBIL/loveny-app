@@ -88,7 +88,9 @@
     <header class="bg-white shadow-sm py-4 px-6">
         <nav class="container mx-auto flex justify-between items-center">
             <a href="{% url 'homepage' %}" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</a>
-            <div class="flex space-x-6 items-center">
+            
+            {# Desktop Navigation - Hidden on small screens #}
+            <div class="hidden md:flex space-x-6 items-center">
                 {% if user.is_authenticated %}
                     <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Profile</a>
                     <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Browse</a>
@@ -100,7 +102,32 @@
                     <a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a>
                 {% endif %}
             </div>
+
+            {# Mobile Menu Toggle - Visible on small screens #}
+            <div class="md:hidden">
+                <button id="mobile-menu-toggle" class="text-gray-700 hover:text-pink-600 focus:outline-none">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
         </nav>
+
+        {# Mobile Menu Content - Hidden by default, toggled by JS #}
+        <div id="mobile-menu" class="md:hidden hidden absolute top-16 left-0 w-full bg-white shadow-lg py-4 px-6 z-50">
+            <div class="flex flex-col space-y-4">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Profile</a>
+                    <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Browse</a>
+                    <a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Matches</a>
+                    <a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Plans</a>
+                    <a href="{% url 'logout' %}" class="btn btn-secondary w-full">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-primary w-full">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
     </header>
 
     <main class="flex-grow container mx-auto py-8 px-4">
@@ -126,5 +153,18 @@
     {% block extra_js %}
     {# Additional JavaScript can be added here by child templates #}
     {% endblock extra_js %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuToggle && mobileMenu) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
