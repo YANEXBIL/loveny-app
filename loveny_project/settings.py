@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts', # Your custom accounts app
+    'widget_tweaks', # <-- ADDED THIS LINE BACK
 ]
 
 MIDDLEWARE = [
