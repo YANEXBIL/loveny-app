@@ -1,209 +1,429 @@
-<!-- accounts/templates/accounts/base.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOVENY - {% block title %}{% endblock %}</title>
-    <!-- Tailwind CSS CDN -->
+    {# This block allows child templates to set their own titles #}
+    <title>{% block title %}My LOVENY App{% endblock %}</title> 
+    
+    {# Load Tailwind CSS from CDN. #}
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    {# Load Font Awesome for icons #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    {# Consolidated CSS for the entire site #}
     <style>
+        /* CSS Variables for your LOVENY Gradient and Glow */
+        :root {
+            --loveny-pink-start: #FF00AA; /* Vibrant Fuchsia */
+            --loveny-purple-end: #9B59B6; /* Distinct Purple */
+            --loveny-gradient: linear-gradient(to right, var(--loveny-pink-start) 0%, var(--loveny-purple-end) 100%);
+            
+            /* Glow colors based on gradient ends */
+            --glow-pink-base: rgba(255, 0, 170, 0.4); /* Softer base glow */
+            --glow-purple-base: rgba(155, 89, 182, 0.3); /* Softer base glow */
+            --glow-pink-wider: rgba(255, 0, 170, 0.2);
+
+            --glow-pink-hover: rgba(255, 0, 170, 0.6); /* Slightly stronger hover glow */
+            --glow-purple-hover: rgba(155, 89, 182, 0.4); /* Slightly stronger hover glow */
+            --glow-pink-wider-hover: rgba(255, 0, 170, 0.3);
+
+            --header-bg-color: #D8008F; /* Solid pink derived from gradient, darker for header */
+            --sidebar-bg-color: #C2007C; /* Slightly darker pink for sidebar and footer */
+            --link-hover-color: #fce4ec; /* Very light pink/white for hover */
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5; /* Light gray background */
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background: var(--loveny-gradient); /* Applied glowing gradient here */
             min-height: 100vh;
+            display: flex; /* Ensure body is a flex container */
+            flex-direction: column; /* Stack content vertically */
+            align-items: center; /* Center horizontally */
+            justify-content: flex-start; /* Start content from the top */
+        }
+        
+        /* Styles specifically for browse_profiles.html cards - PROFESSIONAL LOOK */
+        .profile-card { /* This class is used in both browse and swipe */
+            background-color: #fff;
+            border-radius: 1rem; /* Slightly less rounded for a professional look */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); /* Softer, more professional shadow */
+            border: 1px solid #e0e0e0; /* Light gray border for definition */
+            padding: 1.25rem; /* Adjusted padding for better spacing */
             display: flex;
             flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            position: relative; /* ADDED: This is crucial for absolute positioning of children */
         }
+        .profile-card:hover {
+            transform: translateY(-3px) scale(1.01); /* Subtle lift on hover */
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); /* Slightly stronger shadow */
+            border-color: var(--loveny-pink-start); /* Border highlights on hover */
+        }
+        .profile-picture-container {
+            width: 8rem; /* Retained size */
+            height: 8rem; /* Retained size */
+            overflow: hidden;
+            border-radius: 9999px; /* Rounded-full */
+            border: 3px solid var(--loveny-pink-start); /* Slightly thinner, uses pink variable */
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            margin-bottom: 1.25rem; /* Increased margin for more separation */
+            flex-shrink: 0;
+        }
+        .profile-picture-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .default-profile-pic {
+            background-color: #f5f5f5; /* Lighter background for default */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b0b0b0; /* Lighter gray for initial */
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .profile-card h3 {
+            font-size: 1.75rem; /* Slightly larger name */
+            font-weight: 700; /* Extra bold */
+            color: #333; /* Darker text for name */
+            margin-bottom: 0.5rem; /* Closer to age */
+        }
+        .profile-card p {
+            font-size: 0.95rem; /* Slightly smaller for details */
+            color: #666; /* Softer text color for details */
+            margin-bottom: 0.4rem; /* Reduced spacing between detail lines */
+        }
+        /* Base badge styling - not directly used by premium/match for position */
+        .badge {
+            padding: 0.2rem 0.6rem; /* Slightly smaller padding */
+            border-radius: 9999px;
+            font-size: 0.7rem; /* Slightly smaller font */
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15); /* Subtle shadow for badges */
+            z-index: 10; /* Ensure badges are above other elements but below status */
+        }
+        .badge-premium {
+            background-color: var(--loveny-purple-end);
+        }
+        .badge-match {
+            background-color: #ef4444; /* Red-500 */
+        }
+        .like-button {
+            background: var(--loveny-gradient);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.3s ease-in-out;
+            font-size: 0.875rem;
+            box-shadow: 
+                0 0 8px 2px var(--glow-pink-base), /* Softer glow */
+                0 0 15px 4px var(--glow-purple-base);
+            border: none; /* No border for the button itself */
+        }
+        .like-button:hover {
+            filter: brightness(1.05); /* Very subtle brightness increase */
+            transform: translateY(-2px); /* Slightly more lift */
+            box-shadow: 
+                0 0 12px 3px var(--glow-pink-hover), 
+                0 0 25px 7px var(--glow-purple-hover);
+        }
+        .like-button:active {
+            transform: translateY(0);
+            box-shadow: 
+                0 0 5px 1px var(--glow-pink-base);
+        }
+        .liked-button {
+            background-color: #fca5a5;
+            color: #ef4444;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        /* Custom Button Styles (for profile.html and general use) */
         .btn {
-            @apply font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            font-weight: 600; /* font-semibold */
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
+            text-decoration: none; /* Remove underline for links acting as buttons */
+            cursor: pointer;
+            width: 100%; /* Full width on smaller screens */
+            max-width: fit-content; /* Adjust to content on larger screens */
+            border: none; /* Removed border */
         }
         .btn-primary {
-            @apply bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700;
+            background: var(--loveny-gradient); /* Use glowing gradient */
+            color: white;
+            box-shadow: 
+                0 0 8px 2px var(--glow-pink-base), 
+                0 0 15px 4px var(--glow-purple-base);
+        }
+        .btn-primary:hover {
+            filter: brightness(1.05); /* Slightly brighter on hover */
+            transform: translateY(-2px);
+            box-shadow: 
+                0 0 12px 3px var(--glow-pink-hover), 
+                0 0 25px 7px var(--glow-purple-hover);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: 
+                0 0 5px 1px var(--glow-pink-base); /* Reduced glow on active */
         }
         .btn-secondary {
-            @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+            background-color: #e0e0e0; /* Gray-200 */
+            color: #4a5568; /* Gray-700 */
+            border: 1px solid #bdbdbd; /* Gray-400 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .btn-lg {
-            @apply px-6 py-3 text-lg;
+        .btn-secondary:hover {
+            background-color: #cccccc; /* Gray-300 */
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         }
-        .btn-sm {
-            @apply px-3 py-1 text-sm;
+        .btn-secondary:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
-        /* Style for messages */
-        .messages {
-            list-style: none;
-            padding: 0;
-            margin-top: 1rem;
-            width: 100%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+        /* Responsive adjustments for buttons */
+        @media (min-width: 640px) { /* sm breakpoint */
+            .btn {
+                width: auto; /* Buttons adjust width based on content */
+            }
         }
-        .messages li {
-            padding: 0.75rem 1.25rem;
-            margin-bottom: 0.5rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
+
+        /* --- Styles for Profile Edit Page (from original profile_edit.html) --- */
+        /* Base hidden file input */
+        input[type="file"] {
+            display: none;
         }
-        .messages .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+
+        /* Fancy Lightbox Styles */
+        #modal {
+            position: fixed;
+            inset: 0; /* Shorthand for top, right, bottom, left: 0; */
+            background: rgba(0,0,0,0.85);
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            cursor: zoom-out;
+            animation: fadeIn 0.3s ease forwards;
         }
-        .messages .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+
+        #modal.show {
+            display: flex; /* Show when 'show' class is added */
         }
-        .messages .info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+
+        #modalImg {
+            max-width: 90vw;
+            max-height: 85vh;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            animation: zoomIn 0.3s ease forwards;
+            cursor: default; /* Image itself shouldn't trigger close */
+            user-select: none;
         }
-        .messages .warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
+
+        #modalCloseBtn {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: rgba(255,255,255,0.85);
+            border-radius: 9999px; /* Makes it a perfect circle */
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--loveny-pink-start); /* Now uses pink variable */
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: background-color 0.2s ease;
+            user-select: none;
+            z-index: 10000; /* Ensure it's above the modal backdrop */
         }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+
+        #modalCloseBtn:hover {
+            background: var(--loveny-pink-start); /* Now uses pink variable */
+            color: white;
         }
-        ::-webkit-scrollbar-track {
-            background: #f0f2f5;
+
+        /* Keyframe animations for modal */
+        @keyframes zoomIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a0aec0;
+
+        /* Sidebar Specific Styles */
+        /* #sidebar-nav uses direct Tailwind classes for base styling */
+        #sidebar-nav.open {
+            transform: translateX(0); /* When open, move into view */
+        }
+        #sidebar-backdrop {
+            display: none; /* Hidden by default */
+        }
+        #sidebar-backdrop.show {
+            display: block; /* Show when sidebar is open */
+        }
+        /* .menu-button class is now directly on the button in HTML */
+
+        /* Custom focus styles for form inputs */
+        .focus-gradient-border:focus {
+            border-color: var(--loveny-pink-start) !important; /* Use pink for border */
+            box-shadow: 0 0 0 3px rgba(255, 0, 170, 0.5) !important; /* Pink glow for focus ring */
+            outline: none !important; /* Remove default outline */
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <header class="bg-white shadow-sm py-4 px-6">
-        <nav class="container mx-auto flex justify-between items-center">
-            <a href="{% url 'homepage' %}" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</a>
+    {# Example Header #}
+    <header class="text-white py-2 px-4 shadow-md z-20 w-full flex justify-between items-center relative" 
+            style="background-color: var(--header-bg-color); 
+                   box-shadow: 0 0 10px 3px var(--glow-pink-base), 
+                               0 0 20px 6px var(--glow-purple-base);
+                   transition: box-shadow 0.3s ease-in-out;"> {# Removed bg-pink-600, added glow #}
+        {# LOVENY Logo (Image) #}
+        <a href="{% url 'accounts:homepage' %}" class="z-50">
+            <img src="{% static 'IMAGES/LOVENY LOGO.png' %}" alt="LOVENY Logo" class="h-10 md:h-12 transition"> {# Adjusted logo size #}
+        </a>
+        
+        {# Hamburger menu icon for mobile #}
+        <button id="menu-toggle" class="md:hidden text-white text-2xl cursor-pointer z-50">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        {# Sidebar navigation container #}
+        {# On mobile, it's fixed and has a background. On md (desktop), it's relative, transparent, and its content is aligned. #}
+        <div id="sidebar-nav" class="fixed inset-y-0 left-0 w-64 text-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col p-4 z-40 
+                                      md:relative md:w-auto md:translate-x-0 md:bg-transparent md:shadow-none md:flex-row md:items-center md:space-x-4 md:p-0"> {# Applied md:items-center #}
+            {# Close button for mobile sidebar #}
+            <button id="close-sidebar" class="md:hidden text-white text-2xl cursor-pointer z-50 absolute top-4 right-4">
+                <i class="fas fa-times"></i>
+            </button>
             
-            {# Desktop Navigation - Hidden on small screens #}
-            <div class="hidden md:flex space-x-6 items-center">
-                {% if user.is_authenticated %}
-                    <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Profile</a>
-                    <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Browse</a>
-                    <a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Matches</a>
-                    <a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Plans</a>
-                    <a href="{% url 'logout' %}" class="btn btn-secondary">Logout</a>
-                {% else %}
-                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors">Login</a>
-                    <a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a>
-                {% endif %}
-            </div>
-
-            {# Mobile Menu Toggle - Visible on small screens #}
-            <div class="md:hidden">
-                <button id="mobile-menu-toggle" class="text-gray-700 hover:text-pink-600 focus:outline-none">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-            </div>
-        </nav>
-
-        {# Mobile Menu Content - Now slides in from the right #}
-        <div id="mobile-menu" class="md:hidden fixed top-0 right-0 h-full w-64 bg-white shadow-xl py-4 px-6 z-50 transform translate-x-full transition-transform duration-300 ease-in-out">
-            <div class="flex flex-col space-y-4">
-                {# Add a close button for the sidebar #}
-                <div class="flex justify-end mb-4">
-                    <button id="mobile-menu-close" class="text-gray-700 hover:text-pink-600 focus:outline-none">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
+            {# Navigation links wrapper - now directly inside sidebar-nav and simplified #}
+            {# Removed the redundant inner div. Links are now direct children of #sidebar-nav on desktop. #}
+            <a href="{% url 'accounts:homepage' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Home</a>
+            <a href="{% url 'accounts:browse_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Browse</a>
+            <a href="{% url 'accounts:matches' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Matches</a>
+            <a href="{% url 'accounts:swipe_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Swipe</a> {# Added Swipe button #}
+            <a href="{% url 'accounts:profile' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">My Profile</a>
+            {# Conditional display for Premium link #}
+            {% if not user.is_premium %}
+                <a href="{% url 'accounts:subscription_plans' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Premium</a>
+            {% endif %}
+            {% if user.is_authenticated %}
+                {# The logout link is now a form #}
+                <form action="{% url 'accounts:logout' %}" method="post" class="inline w-full md:w-auto text-center">
+                    {% csrf_token %}
+                    <button type="submit" class="hover:text-[var(--link-hover-color)] transition p-2 md:p-0 m-0 bg-transparent border-none cursor-pointer text-lg md:text-base text-white w-full">
+                        Logout
                     </button>
-                </div>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'profile' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Profile</a>
-                    <a href="{% url 'browse_profiles' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Browse</a>
-                    <a href="{% url 'matches' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Matches</a>
-                    <a href="{% url 'subscription_plans' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Plans</a>
-                    <a href="{% url 'logout' %}" class="btn btn-secondary w-full">Logout</a>
-                {% else %}
-                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-pink-600 font-medium transition-colors text-lg">Login</a>
-                    <a href="{% url 'register' %}" class="btn btn-primary w-full">Sign Up</a>
-                {% endif %}
-            </div>
+                </form>
+            {% else %}
+                <a href="{% url 'accounts:login' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Login</a>
+                {# Corrected URL name from 'register' to 'signup' #}
+                <a href="{% url 'accounts:signup' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Sign Up</a>
+            {% endif %}
         </div>
+        {# Sidebar backdrop for mobile #}
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
     </header>
 
-    <main class="flex-grow container mx-auto py-8 px-4">
-        {# Django Messages Framework #}
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li {% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-
+    {# This is where the content from child templates will be inserted #}
+    <main class="flex-grow container mx-auto my-8 p-4 w-full max-w-6xl">
         {% block content %}
-        {# Content from child templates will go here #}
+            {# Default content for the main block if a child template doesn't override it #}
         {% endblock content %}
     </main>
 
-    <footer class="bg-white shadow-inner py-6 mt-auto text-center text-gray-600 text-sm">
-        <p>&copy; 2025 LOVENY. All rights reserved.</p>
-        
+    {# Example Footer #}
+    <footer class="text-white text-center p-4 shadow-inner mt-auto w-full" style="background-color: var(--sidebar-bg-color);"> {# Set footer background to sidebar pink variable #}
+        <div class="container mx-auto">
+            &copy; 2025 LOVENY App. All rights reserved.
+        </div>
     </footer>
-
-    {% block extra_js %}
-    {# Additional JavaScript can be added here by child templates #}
-    {% endblock extra_js %}
+    {# Optional block for page-specific JavaScript #}
+    {% block extra_js %}{% endblock extra_js %}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-            const mobileMenu = document.getElementById('mobile-menu');
-            const mobileMenuClose = document.getElementById('mobile-menu-close');
+            const menuToggle = document.getElementById('menu-toggle');
+            const closeSidebar = document.getElementById('close-sidebar');
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+            // Select all direct children that are links or buttons for navigation purposes
+            const navLinks = sidebarNav.querySelectorAll('a, button'); 
 
-            function closeMobileMenu() {
-                if (!mobileMenu.classList.contains('translate-x-full')) {
-                    mobileMenu.classList.add('translate-x-full'); // Slide out
-                }
+            function openSidebar() {
+                sidebarNav.classList.add('open');
+                sidebarBackdrop.classList.add('show');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling background
             }
 
-            if (mobileMenuToggle && mobileMenu) {
-                mobileMenuToggle.addEventListener('click', function(event) {
-                    event.stopPropagation(); // Prevent this click from propagating to document and closing immediately
-                    mobileMenu.classList.remove('translate-x-full'); // Slide in
-                });
-
-                if (mobileMenuClose) {
-                    mobileMenuClose.addEventListener('click', function(event) {
-                        event.stopPropagation(); // Prevent this click from propagating
-                        closeMobileMenu();
-                    });
-                }
-
-                // Close when clicking outside the sidebar or toggle button
-                document.addEventListener('click', function(event) {
-                    const isClickInsideMenu = mobileMenu.contains(event.target);
-                    const isClickOnToggle = mobileMenuToggle.contains(event.target);
-
-                    if (!isClickInsideMenu && !isClickOnToggle) {
-                        closeMobileMenu();
-                    }
-                });
-
-                // Optional: Close menu if a link inside it is clicked
-                mobileMenu.querySelectorAll('a').forEach(link => {
-                    link.addEventListener('click', function() {
-                        closeMobileMenu();
-                    });
-                });
+            function closeSidebarFn() {
+                sidebarNav.classList.remove('open');
+                sidebarBackdrop.classList.remove('show');
+                document.body.style.overflow = ''; // Re-enable scrolling
             }
+
+            if (menuToggle) {
+                menuToggle.addEventListener('click', openSidebar);
+            }
+            if (closeSidebar) {
+                closeSidebar.addEventListener('click', closeSidebarFn);
+            }
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', closeSidebarFn);
+            }
+
+            // Close sidebar when a navigation link is clicked
+            navLinks.forEach(link => {
+                link.addEventListener('click', closeSidebarFn);
+            });
+
+            // Prevent sidebar from closing on content clicks within itself, unless it's a link/button
+            sidebarNav.addEventListener('click', function(event) {
+                // Check if the clicked element is part of the sidebar and not a direct child of the sidebar for navigation purposes
+                // If it's a link or button, let it propagate and trigger closeSidebarFn through the event listener above.
+                // If it's just a click inside the sidebar's content, prevent it from closing the sidebar.
+                // Added check for the explicit close button
+                if (event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON' && event.target.id !== 'close-sidebar') {
+                    event.stopPropagation();
+                }
+            });
+        });
+
+        // Small script for Django messages (optional, can be integrated into a larger message system)
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.fixed.top-4.right-4.z-50.space-y-2 > div');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.remove();
+                }, 5000); // Messages disappear after 5 seconds
+            });
         });
     </script>
 </body>

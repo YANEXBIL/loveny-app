@@ -1,40 +1,53 @@
-<!-- accounts/templates/accounts/homepage.html -->
-{% extends 'accounts/base.html' %}
+{% extends 'accounts/base.html' %} {# Extends the base template #}
+{% load static %} {# Load static files if any are used #}
 
-{% block title %}Welcome to LOVENY{% endblock %}
+{% block title %}Welcome to LOVENY{% endblock %} {# Set page title #}
 
-{% block content %}
-<div class="text-center py-16 px-4">
-    <h1 class="text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
-        Find Your Perfect Connection on <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">LOVENY</span>
-    </h1>
-    <p class="text-xl text-gray-700 mb-10 max-w-2xl mx-auto">
-        LOVENY is the leading dating platform for genuine connections, hookups, and sugar relationships in Nigeria. Discover profiles, chat securely, and find your ideal match.
-    </p>
+{% block content %} {# This block holds the main content for this page #}
+{# Full-screen background image container below header #}
+{# Removed items-center from here to allow content to be pushed down by padding #}
+<div class="relative w-full min-h-[calc(100vh-64px)] bg-[url('{% static 'IMAGES/couple%20GO.png' %}')] bg-cover bg-center bg-no-repeat flex justify-center p-4">
+    {# Semi-transparent overlay for text readability - now a dark purple #}
+    <div class="absolute inset-0 bg-opacity-70" style="background-color: rgba(28, 0, 41, 0.7);"></div>
+    
+    {# Original content, now positioned above the overlay and styled for white text #}
+    {# Increased pt-32 to push the content down even more #}
+    <div class="relative z-10 text-center pt-32 pb-12 px-4 text-white"> 
+        <h1 class="text-5xl font-extrabold mb-6 leading-tight">
+            Find Your Perfect Match <span style="color: var(--loveny-pink-start);">Today!</span> {# Text accent uses pink variable #}
+        </h1>
+        <p class="text-xl mb-10 max-w-2xl mx-auto">
+            LOVENY is the leading dating platform for genuine connections, hookups, sugar relationships, and sexcall in Nigeria. Discover profiles, chat securely, and find your ideal match.
+        </p>
 
-    <div class="space-x-4">
-        {% if user.is_authenticated %}
-            {# Replaced "Start Swiping" with "Browse Profiles" #}
-            <a href="{% url 'browse_profiles' %}" class="btn btn-primary btn-lg">Browse Profiles</a>
-            <a href="{% url 'matches' %}" class="btn btn-secondary btn-lg">View Matches</a>
-        {% else %}
-            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">Join LOVENY Now!</a>
-            <a href="{% url 'login' %}" class="btn btn-secondary btn-lg">Log In</a>
-        {% endif %}
-    </div>
-
-    <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
-            <h3 class="text-2xl font-bold text-pink-600 mb-3">💖 Dating</h3>
-            <p class="text-gray-700">Find serious relationships and long-term partners who share your values.</p>
+        <div class="space-x-4 flex flex-col sm:flex-row justify-center items-center gap-4"> {# Added flex for buttons #}
+            {% if user.is_authenticated %}
+                <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-primary py-3 px-6 text-lg">Browse Profiles</a>
+                <a href="{% url 'accounts:matches' %}" class="btn btn-secondary py-3 px-6 text-lg">View Matches</a>
+            {% else %}
+                <a href="{% url 'accounts:signup' %}" class="btn btn-primary py-3 px-6 text-lg">Join LOVENY Now!</a>
+                <a href="{% url 'accounts:login' %}" class="btn btn-secondary py-3 px-6 text-lg">Log In</a>
+            {% endif %}
         </div>
-        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
-            <h3 class="text-2xl font-bold text-purple-600 mb-3">🔥 Hookups</h3>
-            <p class="text-gray-700">For casual encounters and spontaneous fun with like-minded individuals.</p>
-        </div>
-        <div class="p-6 bg-white rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
-            <h3 class="text-2xl font-bold text-yellow-600 mb-3">💎 Sugar Relationships</h3>
-            <p class="text-gray-700">Connect with generous benefactors or ambitious companions.</p>
+
+        <div class="mt-16 grid grid-cols-1 md:grid-cols-4 gap-8 max-w-4xl mx-auto"> {# Changed grid-cols-3 to grid-cols-4 #}
+            <div class="p-6 bg-white bg-opacity-80 rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-3" style="color: var(--loveny-pink-start);">💖 Dating</h3> {# Heading uses pink variable #}
+                <p class="text-gray-700">Find serious relationships and long-term partners who share your values.</p>
+            </div>
+            <div class="p-6 bg-white bg-opacity-80 rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-3" style="color: var(--loveny-pink-start);">🔥 Hookups</h3> {# Heading uses pink variable #}
+                <p class="text-gray-700">Explore casual connections with like-minded individuals in your area.</p>
+            </div>
+            <div class="p-6 bg-white bg-opacity-80 rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-3" style="color: var(--loveny-pink-start);">💎 Sugar Daddy & Mummy</h3> {# Heading uses pink variable #}
+                <p class="text-gray-700">Discover mutually beneficial sugar relationships and exciting opportunities.</p>
+            </div>
+            {# NEW: Sexcall Section #}
+            <div class="p-6 bg-white bg-opacity-80 rounded-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-3" style="color: var(--loveny-pink-start);">📞 Sexcall</h3>
+                <p class="text-gray-700">Connect for discrete and satisfying intimate experiences.</p>
+            </div>
         </div>
     </div>
 </div>

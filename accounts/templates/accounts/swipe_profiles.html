@@ -1,0 +1,413 @@
+{% extends 'accounts/base.html' %}
+{% load static %}
+
+{% block title %}Swipe Profiles{% endblock %}
+
+{% block content %}
+<div class="flex justify-center items-center min-h-[calc(100vh-160px)] px-4 py-8"> {# Adjust min-height as needed considering header/footer #}
+    <div class="relative w-full max-w-sm h-[550px] bg-gray-100 rounded-3xl shadow-2xl flex items-center justify-center overflow-hidden">
+        {# Container for swipeable cards #}
+        <div id="swipe-card-container" class="relative w-full h-full flex items-center justify-center">
+            {# The first profile card will be rendered here dynamically by JS #}
+            {# No initial server-rendered card here, JS will fully control it #}
+        </div>
+
+        {# Action Buttons (Like/Nope) #}
+        {# These buttons are always rendered but their display is controlled by JS based on profiles data #}
+        <div class="absolute bottom-4 w-full flex justify-center space-x-6 z-10">
+            <button id="nope-button" class="bg-red-500 text-white rounded-full p-4 shadow-lg hover:bg-red-600 transition transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <button id="like-button" class="bg-green-500 text-white rounded-full p-4 shadow-lg hover:bg-green-600 transition transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-heart text-2xl"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const swipeCardContainer = document.getElementById('swipe-card-container');
+        const likeButton = document.getElementById('like-button');
+        const nopeButton = document.getElementById('nope-button');
+
+        let currentProfileIndex = 0;
+        let profiles = [];
+        try {
+            // Trim whitespace and remove Django's default escaping if present, though escapejs should handle it.
+            const rawProfilesJson = '{{ profiles_json|escapejs }}'.trim();
+            profiles = JSON.parse(rawProfilesJson);
+            console.log("DEBUG: Profiles data loaded:", profiles);
+        } catch (e) {
+            console.error("ERROR: Failed to parse profiles_json:", e);
+            console.log("Raw profiles_json content that caused error:", '{{ profiles_json|escapejs }}');
+        }
+
+        // Function to calculate and display online/last seen status - NEW
+        function updateOnlineStatus(cardElement, lastLoginIso) {
+            const statusDot = cardElement.querySelector('.status-dot');
+            const statusText = cardElement.querySelector('.status-text');
+
+            if (!lastLoginIso || lastLoginIso === 'None') {
+                statusDot.classList.remove('bg-green-500', 'bg-gray-400');
+                statusDot.classList.add('bg-gray-400');
+                statusText.textContent = 'Never online';
+                return;
+            }
+
+            const lastLoginDate = new Date(lastLoginIso);
+            const now = new Date();
+            const diffMinutes = Math.round((now - lastLoginDate) / (1000 * 60)); // Difference in minutes
+
+            if (diffMinutes < 10) { // Considered online if logged in within last 10 minutes
+                statusDot.classList.remove('bg-gray-400');
+                statusDot.classList.add('bg-green-500');
+                statusText.textContent = 'Online now';
+            } else if (diffMinutes < 60) {
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-gray-400');
+                statusText.textContent = `${diffMinutes} min ago`;
+            } else if (diffMinutes < (24 * 60)) {
+                const diffHours = Math.round(diffMinutes / 60);
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-gray-400');
+                statusText.textContent = `${diffHours} hr ago`;
+            } else if (diffMinutes < (48 * 60)) {
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-gray-400');
+                statusText.textContent = 'Yesterday';
+            } else {
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-gray-400');
+                statusText.textContent = lastLoginDate.toLocaleDateString(); // Fallback to date
+            }
+        }
+
+        // Function to render a new profile card
+        function renderProfileCard(profile) {
+            console.log("DEBUG: renderProfileCard called for profile:", profile ? profile.username : "No profile (showing 'no more profiles')");
+
+            // Clear any existing interval from the previous card
+            const previousCard = swipeCardContainer.querySelector('.profile-card');
+            if (previousCard && previousCard._cycleInterval) {
+                clearInterval(previousCard._cycleInterval);
+                console.log("DEBUG: Cleared previous card's image cycler interval.");
+            }
+
+            if (!profile) {
+                // If no profile, render the "no more profiles" message
+                swipeCardContainer.innerHTML = `
+                    <div id="no-profiles-card" class="absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center text-center">
+                        <p class="text-gray-700 text-xl font-semibold mb-4">No more profiles to swipe on!</p>
+                        <p class="text-gray-600 mb-6">Keep browsing and liking to find your perfect match!</p>
+                        <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-primary">Browse All Profiles</a>
+                        <a href="{% url 'accounts:profile_edit' %}" class="btn btn-secondary mt-3">Edit My Preferences</a>
+                    </div>
+                `;
+                // Disable buttons if no profiles
+                if (likeButton) likeButton.style.display = 'none';
+                if (nopeButton) nopeButton.style.display = 'none';
+                console.log("DEBUG: Displayed 'no more profiles' message and hid buttons.");
+                return;
+            }
+
+            // Construct the profile card HTML dynamically
+            let imagesHtml = '';
+            let dotsHtml = '';
+            // Ensure profile.profile_pictures is an array and not empty
+            if (profile.profile_pictures && Array.isArray(profile.profile_pictures) && profile.profile_pictures.length > 0) {
+                profile.profile_pictures.forEach((imageUrl, index) => {
+                    imagesHtml += `
+                        <img src="${imageUrl}" 
+                             alt="${profile.username}'s Image ${index + 1}"
+                             class="profile-cycler-img absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${index !== 0 ? 'opacity-0' : ''}"
+                             data-image-index="${index}">
+                    `;
+                    // Only add dots if there's more than one image
+                    if (profile.profile_pictures.length > 1) {
+                        dotsHtml += `
+                            <span class="profile-cycler-dot w-2 h-2 bg-white rounded-full cursor-pointer opacity-50 ${index === 0 ? 'opacity-100' : ''}" data-dot-index="${index}"></span>
+                        `;
+                    }
+                });
+            } else {
+                // Fallback for no images or invalid images array
+                const defaultAvatarUrl = "{% static 'default_avatar.png' %}";
+                imagesHtml = `
+                    <img src="${defaultAvatarUrl}" alt="Default Avatar" class="w-full h-full object-cover">
+                `;
+                console.log("DEBUG: Using default avatar for profile due to no valid pictures:", profile.username);
+            }
+
+            swipeCardContainer.innerHTML = `
+                <div id="profile-card-${profile.username}" data-username="${profile.username}" class="profile-card absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center text-center transition-transform transform duration-700 ease-out">
+                    <div class="relative w-48 h-48 md:w-56 md:h-56 mb-4 rounded-full overflow-hidden border-4 border-pink-400 shadow-md flex-shrink-0">
+                        ${imagesHtml}
+                        ${profile.profile_pictures && profile.profile_pictures.length > 1 ? `<div class="absolute bottom-2 left-0 right-0 flex justify-center space-x-1">${dotsHtml}</div>` : ''}
+                    </div>
+
+                    <h2 class="text-3xl font-bold text-gray-900 mb-1">${profile.full_name || profile.username}</h2>
+                    <p class="text-gray-600 mb-3">${profile.age ? profile.age + ' years old' : 'Age not set'}</p>
+                    <p class="text-gray-700 text-base mb-4">${profile.location || 'Location not set'}</p>
+                    <p class="text-gray-700 text-base mb-4">Gender: ${profile.gender_display || 'Not specified'}</p>
+                    <p class="text-gray-700 text-base mb-4">Seeking: ${profile.seeking_display || 'Not specified'}</p>
+                    
+                    {# Online/Last Seen Indicator for Swipe Card - NEW #}
+                    <div class="last-seen-indicator absolute top-3 right-3 flex items-center bg-gray-800 bg-opacity-75 text-white text-xs font-semibold px-2 py-1 rounded-full z-10">
+                        <span class="status-dot w-2 h-2 rounded-full mr-1"></span>
+                        <span class="status-text"></span>
+                    </div>
+
+                    <div class="absolute top-4 left-4 border-4 border-green-500 text-green-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[-15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="like-overlay-${profile.username}">
+                        LIKE
+                    </div>
+                    <div class="absolute top-4 right-4 border-4 border-red-500 text-red-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="nope-overlay-${profile.username}">
+                        NOPE
+                    </div>
+                </div>
+            `;
+            // Ensure buttons are visible if profiles exist
+            if (likeButton) likeButton.style.display = 'flex';
+            if (nopeButton) nopeButton.style.display = 'flex';
+
+            // Get a reference to the newly created card and add click listener
+            const newCard = swipeCardContainer.querySelector(`#profile-card-${profile.username}`);
+            if (newCard) {
+                newCard.addEventListener('click', (event) => {
+                    // Prevent navigation if the click was on a dot (which changes images)
+                    if (event.target.classList.contains('profile-cycler-dot') || event.target.closest('.profile-cycler-dot')) {
+                        console.log("DEBUG: Dot clicked, not navigating to profile page.");
+                        return;
+                    }
+                    console.log("DEBUG: Profile card clicked. Navigating to:", `/accounts/profile/${profile.username}/`);
+                    window.location.href = `/accounts/profile/${profile.username}/`;
+                });
+
+                // Update online status for the new card
+                updateOnlineStatus(newCard, profile.last_login); // Pass the last_login directly
+            }
+
+            // Reinitialize cycler logic for the newly rendered card
+            setupImageCycler(newCard); // Pass the newCard reference
+        }
+
+        // Initial rendering of the first profile
+        if (profiles.length > 0) {
+            renderProfileCard(profiles[currentProfileIndex]);
+        } else {
+            renderProfileCard(null); // Show "no profiles" message
+        }
+
+        // Image Cycler Logic (moved to a function to be reusable)
+        function setupImageCycler(cardElement) {
+            if (!cardElement) return;
+
+            const images = Array.from(cardElement.querySelectorAll('.profile-cycler-img'));
+            const dots = Array.from(cardElement.querySelectorAll('.profile-cycler-dot'));
+            let imageCycleIndex = 0;
+            
+            // Clear any existing interval from the previous card
+            // Store interval ID on the element itself for proper clearing
+            if (cardElement._cycleInterval) {
+                clearInterval(cardElement._cycleInterval); 
+            }
+
+            function showCyclerImage(index) {
+                images.forEach((img, i) => {
+                    img.classList.add('opacity-0');
+                    if (dots[i]) { // Check if dot exists
+                        dots[i].classList.remove('opacity-100');
+                        dots[i].classList.add('opacity-50');
+                    }
+                });
+
+                if (images[index]) images[index].classList.remove('opacity-0');
+                if (dots[index]) { // Check if dot exists
+                    dots[index].classList.remove('opacity-50');
+                    dots[index].classList.add('opacity-100');
+                }
+            }
+
+            function nextCyclerImage() {
+                imageCycleIndex = (imageCycleIndex + 1) % images.length;
+                showCyclerImage(imageCycleIndex);
+            }
+
+            function startImageCycle() {
+                if (images.length > 1) {
+                    cardElement._cycleInterval = setInterval(nextCyclerImage, 3000); // Store interval ID
+                    console.log("DEBUG: Started image cycler for current card.");
+                } else {
+                    console.log("DEBUG: Not starting image cycler, only one image or no images.");
+                }
+            }
+
+            if (images.length > 0) {
+                showCyclerImage(imageCycleIndex);
+                startImageCycle();
+                // Add event listeners for dots if they exist
+                dots.forEach((dot, index) => {
+                    dot.addEventListener('click', (e) => { // Added 'e' parameter
+                        e.stopPropagation(); // Prevent the card click listener from firing
+                        console.log("DEBUG: Dot clicked. Stopping and restarting image cycler.");
+                        clearInterval(cardElement._cycleInterval); // Stop current cycle
+                        imageCycleIndex = index;
+                        showCyclerImage(imageCycleIndex);
+                        startImageCycle(); // Restart cycle from new image
+                    });
+                });
+            }
+        }
+
+
+        // Swipe functionality (button-driven with visual transitions)
+        function handleSwipe(action) {
+            console.log("DEBUG: handleSwipe called with action:", action);
+            const currentCard = swipeCardContainer.querySelector('.profile-card');
+            if (!currentCard) {
+                console.warn("WARN: No current card found to swipe.");
+                return;
+            }
+
+            // Disable buttons immediately to prevent multiple clicks during animation/fetch
+            likeButton.disabled = true;
+            nopeButton.disabled = true;
+            likeButton.classList.add('opacity-50', 'cursor-not-allowed');
+            nopeButton.classList.add('opacity-50', 'cursor-not-allowed');
+            console.log("DEBUG: Buttons disabled.");
+
+
+            const username = currentCard.dataset.username;
+            const actionUrl = `/accounts/like/${username}/`; // Re-use the like view for both actions
+
+            // Stop the image cycler for the current card
+            clearInterval(currentCard._cycleInterval);
+            console.log("DEBUG: Cleared image cycler interval for swiping card.");
+
+            // Show overlay animation
+            const overlay = action === 'like' ? document.getElementById(`like-overlay-${username}`) : document.getElementById(`nope-overlay-${username}`);
+            if (overlay) {
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
+                console.log("DEBUG: Overlay shown for action:", action);
+            }
+
+            // Animate card out
+            // Transition duration is now 700ms, matching the timeout.
+            currentCard.style.transition = 'transform 0.7s ease-in-out, opacity 0.7s ease-in-out'; 
+            if (action === 'like') {
+                currentCard.style.transform = 'translateX(150%) rotate(30deg)';
+            } else { // nope
+                currentCard.style.transform = 'translateX(-150%) rotate(-30deg)';
+            }
+            currentCard.style.opacity = '0';
+            console.log("DEBUG: Card animation started. Transform:", currentCard.style.transform, "Opacity:", currentCard.style.opacity);
+
+            // Send data to backend via AJAX and then remove/render next card
+            console.log("DEBUG: Sending AJAX request to:", actionUrl);
+            fetch(actionUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest' // Important for Django's is_ajax() check
+                },
+                body: `action=${action}` 
+            })
+            .then(response => {
+                console.log("DEBUG: Fetch response received. Status:", response.status);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Server responded with status ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'ok') {
+                    console.log(`DEBUG: Action '${action}' successful for ${data.username}. Response data:`, data);
+                    
+                    // Wait for the animation to mostly complete before removing the old card and rendering the next
+                    setTimeout(() => {
+                        currentCard.remove(); // Explicitly remove the old card from DOM
+                        console.log("DEBUG: Old card removed from DOM.");
+                        currentProfileIndex++;
+                        if (currentProfileIndex < profiles.length) {
+                            renderProfileCard(profiles[currentProfileIndex]);
+                        } else {
+                            console.log("DEBUG: No more profiles in the current batch.");
+                            renderProfileCard(null); // Show "no more profiles"
+                        }
+                        // Re-enable buttons after new card is rendered or message is shown
+                        likeButton.disabled = false;
+                        nopeButton.disabled = false;
+                        likeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                        nopeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                        console.log("DEBUG: Buttons re-enabled.");
+
+                    }, 700); // This timeout should match or be slightly longer than CSS transition
+                } else {
+                    console.error('ERROR: Backend reported failure:', data.message, data.errors);
+                    // Revert card animation if error
+                    currentCard.style.transform = 'none';
+                    currentCard.style.opacity = '1';
+                    if (overlay) {
+                        overlay.classList.remove('opacity-100');
+                        overlay.classList.add('opacity-0');
+                    }
+                    // Re-enable buttons on error
+                    likeButton.disabled = false;
+                    nopeButton.disabled = false;
+likeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+nopeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    console.log("DEBUG: Buttons re-enabled due to error.");
+                }
+            })
+            .catch(error => {
+                console.error('ERROR: Fetch or unexpected error:', error);
+                // Revert card animation if error
+                currentCard.style.transform = 'none';
+                currentCard.style.opacity = '1';
+                if (overlay) {
+                    overlay.classList.remove('opacity-100');
+                    overlay.classList.add('opacity-0');
+                }
+                // Re-enable buttons on error
+                likeButton.disabled = false;
+                nopeButton.disabled = false;
+                likeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                nopeButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                console.log("DEBUG: Buttons re-enabled due to error.");
+            });
+        }
+
+        // Attach event listeners to buttons
+        if (likeButton) {
+            likeButton.addEventListener('click', () => handleSwipe('like'));
+            console.log("DEBUG: Like button event listener attached.");
+        }
+        if (nopeButton) {
+            nopeButton.addEventListener('click', () => handleSwipe('nope'));
+            console.log("DEBUG: Nope button event listener attached.");
+        }
+
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock extra_js %}

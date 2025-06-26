@@ -1,105 +1,209 @@
-<!-- accounts/includes/profile_card_partial.html -->
-{% if profile %}
-<div id="profile-card" data-username="{{ profile.username }}" class="absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center text-center transition-transform transform duration-300 ease-out">
-    
-    {# Image Cycler Section #}
-    <div class="relative w-48 h-48 md:w-56 md:h-56 mb-4 rounded-full overflow-hidden border-4 border-pink-400 shadow-md flex-shrink-0">
+{% extends 'accounts/base.html' %} {# Extends the base template #}
+{% load static %} {# Load static files if any are used directly here (e.g., default profile pic) #}
+
+{% block title %}{{ profile.first_name }}'s Profile{% endblock %} {# Set page title #}
+
+{% block content %} {# This block holds the main content for this page #}
+<div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4 py-8"> {# Added vertical padding #}
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8">
+        <div class="flex-shrink-0 relative"> {# Added relative for badge positioning #}
+            {# Main Profile Picture - now clickable for preview #}
+            <div class="relative w-48 h-48 rounded-full overflow-hidden border-4 border-pink-400 shadow-md cursor-pointer" onclick="openModal(this.querySelector('img').src)">
+                {% if profile.profile_picture %}
+                    <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
+                         class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-48 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-6xl font-bold border-4 border-gray-300">
+                        {{ profile.username.0|upper }}
+                    </div>
+                {% endif %}
+                <div class="absolute bottom-0 w-full bg-black bg-opacity-40 text-white text-xs text-center py-1">Tap to preview</div>
+            </div>
+
+            {% if profile.is_premium %}
+                {# VIP Badge #}
+                <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
+                    VIP
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="flex-grow text-center md:text-left">
+            <h2 class="text-4xl font-extrabold text-gray-900 mb-2">{{ profile.username }}</h2>
+            <p class="text-xl text-gray-700 mb-4">{{ profile.get_full_name|default:"No Name" }}</p>
+
+            {# Online/Last Seen Indicator - NEW #}
+            {# Added data-last-login to this container for the JS function #}
+            <div id="profile-status-container" class="flex items-center justify-center md:justify-start bg-gray-800 bg-opacity-75 text-white text-xs font-semibold px-2 py-1 rounded-full w-fit mx-auto md:mx-0 mb-4" data-last-login="{{ profile.last_login }}">
+                <span class="status-dot w-2 h-2 rounded-full mr-1"></span>
+                <span class="status-text"></span>
+            </div>
+
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-gray-800">
+                {% if profile.date_of_birth %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Age:</strong> {{ profile.get_age }}</p>
+                {% endif %}
+                {% if profile.gender %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Gender:</strong> {{ profile.get_gender_display }}</p>
+                {% endif %}
+                {% if profile.location %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Location:</strong> {{ profile.location }}</p>
+                {% endif %}
+                {% comment %} Updated from user_type to looking_for {% endcomment %}
+                {% if profile.looking_for %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Looking For:</strong> {{ profile.get_looking_for_display }}</p>
+                {% endif %}
+                {% if profile.seeking %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Seeking:</strong> {{ profile.get_seeking_display }}</p>
+                {% endif %}
+            </div>
+
+            {% if profile.bio %}
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">About Me:</h3>
+                    <p class="text-gray-800 leading-relaxed">{{ profile.bio }}</p>
+                </div>
+            {% endif %}
+
+            {# Buttons for interacting with another profile #}
+            <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
+                {% if request.user.is_authenticated %}
+                    {% if profile != request.user %}
+                        {# Like/Unlike button for other profiles #}
+                        <form action="{% url 'accounts:like_view' username=profile.username %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
+                                {% if has_liked %}
+                                    <i class="fas fa-heart mr-2"></i> Liked
+                                {% else %}
+                                    <i class="far fa-heart mr-2"></i> Like
+                                {% endif %}
+                            </button>
+                        </form>
+                        
+                        {# Always show WhatsApp button, but enable/disable based on match status #}
+                        {% comment %}
+                            The 'disabled' attribute does not apply to <a> tags.
+                            Instead, we use CSS classes like 'pointer-events-none' and 'cursor-not-allowed'
+                            along with a fallback 'href' to prevent interaction when not matched.
+                        {% endcomment %}
+                        <a href="{% if is_matched and whatsapp_link %}{{ whatsapp_link }}{% else %}javascript:void(0){% endif %}" 
+                           target="_blank" 
+                           class="btn {% if is_matched and whatsapp_link %}btn-primary bg-green-500 hover:bg-green-600{% else %}btn-secondary cursor-not-allowed opacity-50 pointer-events-none{% endif %}">
+                            <i class="fab fa-whatsapp mr-2"></i> Message on WhatsApp
+                        </a>
+
+                    {% else %}
+                        {# If viewing own profile, show Edit My Profile and View My Matches #}
+                        <a href="{% url 'accounts:profile_edit' %}" class="btn btn-primary">Edit My Profile</a>
+                        <a href="{% url 'accounts:matches' %}" class="btn btn-secondary">View My Matches</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Gallery Section - only if there are additional images #}
+{% if all_profile_images %}
+<div class="w-full max-w-3xl mx-auto mt-8 p-8 bg-white rounded-2xl shadow-xl">
+    <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Gallery</h3>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {% for image in all_profile_images %}
-            <img src="{{ image.url }}" 
-                 alt="{{ profile.username }}'s Image {{ forloop.counter }}"
-                 class="profile-cycler-img absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out {% if not forloop.first %}opacity-0{% endif %}"
-                 data-image-index="{{ forloop.counter0 }}">
-        {% empty %}
-            {# Fallback if no images #}
-            <div class="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-5xl md:text-6xl font-bold">
-                {{ profile.username.0|upper }}
+            {# Gallery Images - now clickable for preview #}
+            <div class="w-full h-32 sm:h-40 md:h-48 rounded-lg overflow-hidden shadow-md border border-gray-200 cursor-pointer" onclick="openModal('{{ image.url }}')">
+                <img src="{{ image.url }}" alt="Gallery image" class="w-full h-full object-cover">
             </div>
         {% endfor %}
-        
-        {# Navigation dots for swipe card images (optional, if you want visual indicators) #}
-        {% if all_profile_images.count > 1 %}
-        <div class="absolute bottom-2 left-0 right-0 flex justify-center space-x-1">
-            {% for image in all_profile_images %}
-            <span class="profile-cycler-dot w-2 h-2 bg-white rounded-full cursor-pointer opacity-50 {% if forloop.first %}opacity-100{% endif %}" data-dot-index="{{ forloop.counter0 }}"></span>
-            {% endfor %}
-        </div>
-        {% endif %}
     </div>
-
-    <h2 class="text-3xl font-bold text-gray-900 mb-1">{{ profile.username }}</h2>
-    <p class="text-gray-600 mb-3">{{ profile.get_full_name|default:"No Name" }}</p>
-
-    <div class="text-gray-700 text-base mb-4">
-        {% if profile.get_age %}<p>Age: {{ profile.get_age }}</p>{% endif %}
-        {% if profile.location %}<p>Location: {{ profile.location }}</p>{% endif %}
-        <p>Looking for: {{ profile.get_user_type_display }}</p>
-    </div>
-    
-    <p class="text-gray-800 text-sm overflow-hidden text-ellipsis h-24 mb-4">{{ profile.bio|truncatechars:200 }}</p>
-
-    {# Like/Nope Overlays - these are controlled by swipe_profiles.html's JS #}
-    <div class="absolute top-4 left-4 border-4 border-green-500 text-green-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[-15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="like-overlay">
-        LIKE
-    </div>
-    <div class="absolute top-4 right-4 border-4 border-red-500 text-red-500 font-bold text-4xl px-4 py-2 rounded-lg rotate-[15deg] opacity-0 transition-opacity duration-100 ease-in-out pointer-events-none" id="nope-overlay">
-        NOPE
-    </div>
-
-</div>
-{% else %}
-<div id="profile-card" class="absolute w-full h-full bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center text-center">
-    <p class="text-gray-700 text-xl font-semibold mb-4">No more profiles to swipe on!</p>
-    <p class="text-gray-600 mb-6">Come back later or adjust your preferences.</p>
-    <a href="{% url 'browse_profiles' %}" class="btn btn-primary">Browse All Profiles</a>
-    <a href="{% url 'profile_edit' %}" class="btn btn-secondary mt-3">Edit My Preferences</a>
 </div>
 {% endif %}
 
-{# JavaScript for image cycling within the partial #}
+{# Lightbox modal structure #}
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+    <button id="modalCloseBtn" aria-label="Close preview">&times;</button>
+    <img id="modalImg" src="" alt="Image preview" />
+</div>
+
+{% endblock content %}
+
+{% block extra_js %}
 <script>
+    // --- Modal / Lightbox Functionality (copied from profile_edit.html) ---
+    const modal = document.getElementById('modal');
+    const modalImg = document.getElementById('modalImg');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    function openModal(src) {
+        modalImg.src = src;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling background
+    }
+
+    function closeModal() {
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // Re-enable scrolling
+    }
+
+    // Event listeners for modal
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', closeModal);
+    }
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) { // Close only if clicking on the backdrop
+                closeModal();
+            }
+        });
+    }
+
+    // Function to calculate and display online/last seen status - NEW
+    function updateOnlineStatus(element, lastLoginIso) {
+        const statusDot = element.querySelector('.status-dot');
+        const statusText = element.querySelector('.status-text');
+
+        if (!lastLoginIso || lastLoginIso === 'None') {
+            statusDot.classList.remove('bg-green-500', 'bg-gray-400');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Never online';
+            return;
+        }
+
+        const lastLoginDate = new Date(lastLoginIso);
+        const now = new Date();
+        const diffMinutes = Math.round((now - lastLoginDate) / (1000 * 60)); // Difference in minutes
+
+        if (diffMinutes < 10) { // Considered online if logged in within last 10 minutes
+            statusDot.classList.remove('bg-gray-400');
+            statusDot.classList.add('bg-green-500');
+            statusText.textContent = 'Online now';
+        } else if (diffMinutes < 60) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffMinutes} min ago`;
+        } else if (diffMinutes < (24 * 60)) {
+            const diffHours = Math.round(diffMinutes / 60);
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffHours} hr ago`;
+        } else if (diffMinutes < (48 * 60)) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Yesterday';
+        } else {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = lastLoginDate.toLocaleDateString(); // Fallback to date
+        }
+    }
+
+    // Call updateOnlineStatus on page load for the main profile
     document.addEventListener('DOMContentLoaded', function() {
-        const profileCard = document.getElementById('profile-card');
-        if (profileCard) {
-            const images = Array.from(profileCard.querySelectorAll('.profile-cycler-img'));
-            const dots = Array.from(profileCard.querySelectorAll('.profile-cycler-dot'));
-            let currentImageIndex = 0;
-            let cycleInterval;
-
-            function showCyclerImage(index) {
-                images.forEach((img, i) => {
-                    img.classList.add('opacity-0');
-                    if (dots[i]) dots[i].classList.remove('opacity-100');
-                    if (dots[i]) dots[i].classList.add('opacity-50');
-                });
-
-                if (images[index]) images[index].classList.remove('opacity-0');
-                if (dots[index]) dots[index].classList.remove('opacity-50');
-                if (dots[index]) dots[index].classList.add('opacity-100');
-            }
-
-            function nextCyclerImage() {
-                currentImageIndex = (currentImageIndex + 1) % images.length;
-                showCyclerImage(currentImageIndex);
-            }
-
-            function startImageCycle() {
-                if (images.length > 1) {
-                    cycleInterval = setInterval(nextCyclerImage, 3000); // Cycle every 3 seconds
-                }
-            }
-
-            function stopImageCycle() {
-                clearInterval(cycleInterval);
-            }
-
-            if (images.length > 0) {
-                showCyclerImage(currentImageIndex);
-                startImageCycle();
-
-                // Optional: Stop cycle on hover (though this might conflict with swipe drag)
-                // profileCard.addEventListener('mouseenter', stopImageCycle);
-                // profileCard.addEventListener('mouseleave', startImageCycle);
-            }
+        const profileStatusContainer = document.getElementById('profile-status-container');
+        if (profileStatusContainer) {
+            updateOnlineStatus(profileStatusContainer, profileStatusContainer.dataset.lastLogin);
         }
     });
 </script>
+{% endblock extra_js %}

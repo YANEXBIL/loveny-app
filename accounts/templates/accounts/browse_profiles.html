@@ -1,62 +1,253 @@
-<!-- templates/accounts/browse_profiles.html -->
 {% extends 'accounts/base.html' %}
+{% load static %}
+{% load widget_tweaks %}
 
-{% block title %}Browse LOVENY Profiles{% endblock %}
+{% block title %}Browse Profiles{% endblock %}
 
 {% block content %}
-<div class="text-center mb-8">
-    <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Discover Your Next Connection</h1>
-    <p class="text-lg text-gray-600">Explore profiles based on your preferences.</p>
-    <p class="text-md text-gray-500 mt-2">Your current user type: <span class="font-semibold text-pink-500">{{ current_user_type|title }}</span></p>
-</div>
+<div class="container mx-auto p-4">
+    <h1 class="text-4xl font-extrabold text-center text-gray-900 mb-8">Browse Profiles</h1>
 
-{% if profiles_data %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for data in profiles_data %}
-        {% with profile=data.profile has_liked=data.has_liked is_matched=data.is_matched %}
-        <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center text-center transform hover:scale-105 transition duration-300 ease-in-out">
-            <a href="{% url 'view_other_profile' username=profile.username %}" class="relative flex flex-col items-center"> {# Added relative for badge #}
-                {% if profile.profile_picture %}
-                    <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username }}'s Profile Picture"
-                         class="w-32 h-32 object-cover rounded-full border-4 border-purple-400 shadow-md mb-4">
-                {% else %}
-                    <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-4xl font-bold border-4 border-gray-300 mb-4">
-                        {{ profile.username.0|upper }}
-                    </div>
-                {% endif %}
-                <h3 class="text-2xl font-semibold text-gray-900 mb-2">{{ profile.username }}</h3>
-                {% if profile.is_premium %}
-                    {# VIP Badge for Browse Profiles #}
-                    <span class="absolute top-0 right-0 mt-1 mr-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md">
-                        VIP
-                    </span>
-                {% endif %}
-            </a>
-            <p class="text-gray-700 mb-2">
-                {% if profile.get_age %}{{ profile.get_age }} years old{% else %}Age not set{% endif %}
-                {% if profile.location %}, {{ profile.location }}{% endif %}
-            </p>
-            <p class="text-sm text-gray-600 mb-4 italic">{{ profile.get_user_type_display }}</p>
-            <p class="text-gray-800 text-sm overflow-hidden text-ellipsis h-12">{{ profile.bio|truncatechars:100 }}</p>
-
-            <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-                {% if is_matched %}
-                    <span class="btn bg-green-500 text-white cursor-default">Matched! 🎉</span>
-                {% else %}
-                    <form action="{% url 'like_user' username=profile.username %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn {% if has_liked %}btn-secondary{% else %}btn-primary{% endif %}">
-                            {% if has_liked %}Unlike{% else %}Like{% endif %}
-                        </button>
-                    </form>
-                {% endif %}
-                <a href="{% url 'view_other_profile' username=profile.username %}" class="btn btn-secondary">View Profile</a>
+    {# Filter Section #}
+    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Filter Profiles</h2>
+        <form method="GET" action="{% url 'accounts:browse_profiles' %}" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            {# Age Filter #}
+            <div>
+                <label for="min_age" class="block text-sm font-medium text-gray-700">Minimum Age</label>
+                <input type="number" id="min_age" name="min_age" value="{{ min_age }}"
+                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-pink-500 focus:ring-pink-500 sm:text-sm p-2"
+                       min="18" max="99">
             </div>
-        </div>
-        {% endwith %}
-        {% endfor %}
+            <div>
+                <label for="max_age" class="block text-sm font-medium text-gray-700">Maximum Age</label>
+                <input type="number" id="max_age" name="max_age" value="{{ max_age }}"
+                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-pink-500 focus:ring-pink-500 sm:text-sm p-2"
+                       min="18" max="99">
+            </div>
+
+            {# Location Filter #}
+            <div>
+                <label for="location" class="block text-sm font-medium text-gray-700">Location</label>
+                <input type="text" id="location" name="location" value="{{ location_filter }}"
+                       placeholder="e.g., Lagos"
+                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-pink-500 focus:ring-pink-500 sm:text-sm p-2">
+            </div>
+            
+            {# Submit Button #}
+            <div class="md:col-span-3 flex justify-center mt-4">
+                <button type="submit" class="btn btn-primary w-full md:w-auto">Apply Filters</button>
+            </div>
+        </form>
     </div>
-{% else %}
-    <p class="text-center text-lg text-gray-600 mt-12">No other profiles found at the moment. Check back later!</p>
-{% endif %}
+
+    {# Display Categorized Profiles #}
+    {% if categorized_profiles_data %}
+        {% for category_name, profiles_list in categorized_profiles_data.items %}
+            {% if profiles_list %}
+                <h2 class="text-3xl font-bold text-gray-900 mt-10 mb-6 text-center">{{ category_name }} Profiles</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
+                    {% for profile in profiles_list %}
+                        <div class="profile-card relative p-4" data-username="{{ profile.username }}" data-last-login="{{ profile.last_login }}"> {# Added data-last-login #}
+                            {# Profile Picture #}
+                            <div class="profile-picture-container">
+                                {% if profile.main_profile_picture %}
+                                    <img src="{{ profile.main_profile_picture }}" alt="{{ profile.username }}'s Profile Picture" />
+                                {% else %}
+                                    <div class="default-profile-pic">
+                                        {{ profile.username.0|upper }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            {# Badges #}
+                            {% if profile.is_premium %}
+                                <span class="badge badge-premium">Premium</span>
+                            {% endif %}
+                            {% if profile.is_matched %}
+                                <span class="badge badge-match">Match!</span>
+                            {% endif %}
+                            
+                            {# Online/Last Seen Indicator - NEW #}
+                            <div class="last-seen-indicator absolute top-3 right-3 flex items-center bg-gray-800 bg-opacity-75 text-white text-xs font-semibold px-2 py-1 rounded-full z-10">
+                                <span class="status-dot w-2 h-2 rounded-full mr-1"></span>
+                                <span class="status-text"></span>
+                            </div>
+
+                            {# Profile Info #}
+                            <h3 class="text-xl font-bold text-gray-800 mt-2 truncate w-full">{{ profile.full_name|default:profile.username }}</h3>
+                            <p class="text-sm text-gray-500">{{ profile.age }} years old</p>
+                            <p class="text-sm text-gray-500 mb-4">{{ profile.location|default:"Unknown Location" }}</p>
+
+                            {# Like Button #}
+                            <form action="{% url 'accounts:like_view' username=profile.username %}" method="post" class="w-full mt-auto">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="like-button w-full {% if profile.has_liked %}liked-button{% endif %}"
+                                        data-username="{{ profile.username }}">
+                                    {% if profile.has_liked %}
+                                        <i class="fas fa-heart mr-2"></i> Liked
+                                    {% else %}
+                                        <i class="far fa-heart mr-2"></i> Like
+                                    {% endif %}
+                                </button>
+                            </form>
+                            {# Removed View Profile Button #}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="text-center p-10 bg-white rounded-2xl shadow-lg">
+            <p class="text-xl text-gray-700 font-semibold mb-4">No profiles found matching your criteria.</p>
+            <p class="text-gray-600">Try adjusting your filters or check back later!</p>
+            <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-secondary mt-6">Clear Filters</a>
+        </div>
+    {% endif %}
+</div>
 {% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Helper to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Function to calculate and display online/last seen status
+    function updateOnlineStatus(cardElement) {
+        const lastLoginIso = cardElement.dataset.lastLogin;
+        const statusDot = cardElement.querySelector('.status-dot');
+        const statusText = cardElement.querySelector('.status-text');
+
+        if (!lastLoginIso || lastLoginIso === 'None') {
+            statusDot.classList.remove('bg-green-500', 'bg-gray-400');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Never online';
+            return;
+        }
+
+        const lastLoginDate = new Date(lastLoginIso);
+        const now = new Date();
+        const diffMinutes = Math.round((now - lastLoginDate) / (1000 * 60)); // Difference in minutes
+
+        if (diffMinutes < 10) { // Considered online if logged in within last 10 minutes
+            statusDot.classList.remove('bg-gray-400');
+            statusDot.classList.add('bg-green-500');
+            statusText.textContent = 'Online now';
+        } else if (diffMinutes < 60) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffMinutes} min ago`;
+        } else if (diffMinutes < (24 * 60)) {
+            const diffHours = Math.round(diffMinutes / 60);
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffHours} hr ago`;
+        } else if (diffMinutes < (48 * 60)) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Yesterday';
+        } else {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = lastLoginDate.toLocaleDateString(); // Fallback to date
+        }
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize online status for all profile cards on page load
+        document.querySelectorAll('.profile-card').forEach(card => {
+            updateOnlineStatus(card);
+        });
+
+        // Function to handle like/unlike via AJAX
+        document.querySelectorAll('.like-button').forEach(button => {
+            button.addEventListener('click', async function(event) {
+                event.preventDefault(); // Prevent default form submission
+                event.stopPropagation(); // PREVENT CARD CLICK WHEN LIKE BUTTON IS PRESSED
+
+                const username = this.dataset.username;
+                const form = this.closest('form');
+                const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest', // Important for Django's is_ajax()
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `username=${username}` // Sending username in body for consistency
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        // Update button appearance based on new like status
+                        if (data.has_liked) {
+                            this.classList.add('liked-button');
+                            this.innerHTML = '<i class="fas fa-heart mr-2"></i> Liked';
+                            // Optionally update match badge if it's now a match
+                            const profileCard = this.closest('.profile-card');
+                            if (profileCard && data.is_matched) {
+                                let matchBadge = profileCard.querySelector('.badge-match');
+                                if (!matchBadge) {
+                                    matchBadge = document.createElement('span');
+                                    matchBadge.classList.add('badge', 'badge-match');
+                                    matchBadge.textContent = 'Match!';
+                                    profileCard.prepend(matchBadge);
+                                }
+                            }
+                        } else {
+                            this.classList.remove('liked-button');
+                            this.innerHTML = '<i class="far fa-heart mr-2"></i> Like';
+                            // Remove match badge if it was unliked and no longer a match
+                            const profileCard = this.closest('.profile-card');
+                            if (profileCard) {
+                                const matchBadge = profileCard.querySelector('.badge-match');
+                                if (matchBadge && !data.is_matched) {
+                                    matchBadge.remove();
+                                }
+                            }
+                        }
+                    } else {
+                        console.error('Error updating like status:', data.message);
+                        alert('Failed to update like status: ' + (data.message || 'Unknown error.'));
+                    }
+                } catch (error) {
+                    console.error('Network or server error:', error);
+                    alert('An error occurred. Please try again.');
+                }
+            });
+        });
+
+        // Add click listener to the profile card itself
+        document.querySelectorAll('.profile-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const username = this.dataset.username;
+                if (username) {
+                    window.location.href = `{% url 'accounts:view_user_profile' username='PLACEHOLDER' %}`.replace('PLACEHOLDER', username);
+                }
+            });
+        });
+    });
+</script>
+{% endblock extra_js %}

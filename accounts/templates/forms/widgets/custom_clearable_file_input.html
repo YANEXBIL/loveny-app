@@ -1,0 +1,6 @@
+{% comment %}
+This is a custom template for Django's ClearableFileInput widget.
+It removes the "Currently: [link]" and "Clear checkbox" parts,
+rendering only the file input for new uploads.
+{% endcomment %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}{% include "django/forms/widgets/attrs.html" %}>

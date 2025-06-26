@@ -1,4 +1,3 @@
-<!-- templates/accounts/profile.html -->
 {% extends 'accounts/base.html' %}
 
 {% block title %}{{ user_profile.username }}'s Profile{% endblock %}
@@ -12,7 +11,6 @@
                 <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.username }}'s Profile Picture"
                      class="w-48 h-48 object-cover rounded-full border-4 border-pink-400 shadow-md">
             {% else %}
-                <!-- Placeholder for no profile picture - displays first letter of username -->
                 <div class="w-48 h-48 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-6xl font-bold border-4 border-gray-300">
                     {{ user_profile.username.0|upper }}
                 </div>
@@ -40,8 +38,9 @@
                 {% if user_profile.location %}
                     <p class="flex items-center"><strong class="w-24 text-gray-600">Location:</strong> {{ user_profile.location }}</p>
                 {% endif %}
-                {% if user_profile.user_type %}
-                    <p class="flex items-center"><strong class="w-24 text-gray-600">User Type:</strong> {{ user_profile.get_user_type_display }}</p>
+                {% comment %} Updated from user_type to looking_for {% endcomment %}
+                {% if user_profile.looking_for %}
+                    <p class="flex items-center"><strong class="w-24 text-gray-600">Looking For:</strong> {{ user_profile.get_looking_for_display }}</p>
                 {% endif %}
                 {% if user_profile.seeking %}
                     <p class="flex items-center"><strong class="w-24 text-gray-600">Seeking:</strong> {{ user_profile.get_seeking_display }}</p>
@@ -56,8 +55,8 @@
             {% endif %}
 
             <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                <a href="{% url 'profile_edit' %}" class="btn btn-primary">Edit Profile</a>
-                <a href="{% url 'browse_profiles' %}" class="btn btn-secondary">Browse Profiles</a>
+                <a href="{% url 'accounts:profile_edit' %}" class="btn btn-primary">Edit Profile</a>
+                <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-secondary">Browse Profiles</a>
             </div>
         </div>
     </div>

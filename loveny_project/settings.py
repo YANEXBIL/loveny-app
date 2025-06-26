@@ -1,5 +1,3 @@
-# loveny_project/settings.py
-
 """
 Django settings for loveny_project project.
 
@@ -12,14 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
-import os
 from pathlib import Path
+import os
+import dj_database_url # For connecting to various databases (e.g., PostgreSQL)
+import dotenv # For loading environment variables from .env file
 
-# --- ADD THESE LINES TO LOAD ENVIRONMENT VARIABLES FROM .env FILE ---
-import dotenv
-dotenv.load_dotenv() # This loads variables from the .env file into os.environ
-# --- END ADDITION ---
-
+# Load environment variables from .env file.
+# This should be at the very top of the settings file.
+dotenv.load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,22 +27,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# IMPORTANT: Load SECRET_KEY from environment variable for production!
-# The second argument is a fallback for development. NEVER use your actual production key here.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-super-secret-key-replace-this-in-production-!!!!-and-make-it-long-and-random')
+# Load SECRET_KEY from environment variable for production.
+# Provide a fallback for local development only.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-k%x5v6&x!j1a0m@+&k(m&z)r8v$4s#a8a-0@k%m3r@3y3z0g3v')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False # Set to False for production (important for PythonAnywhere)
+# Load DEBUG from environment variable. It should be 'False' in production.
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
-# Add your PythonAnywhere domain here
-ALLOWED_HOSTS = ['loveny.pythonanywhere.com', '.pythonanywhere.com']
+# ALLOWED_HOSTS for your production server (e.g., your domain name)
+# Load from environment variable, split by comma.
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    # Removed 'daphne', 'channels', 'channels_redis' as in-app chat is removed
-    # 'tailwind_filters', # <-- THIS LINE MUST BE REMOVED OR COMMENTED OUT
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts', # Your custom accounts app
-    'widget_tweaks', # <-- ADDED THIS LINE BACK
+    'widget_tweaks', # For styling forms in templates
 ]
 
 MIDDLEWARE = [
@@ -70,7 +68,7 @@ ROOT_URLCONF = 'loveny_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')], # Add a global templates directory for base.html etc.
+        'DIRS': [BASE_DIR / 'templates'], # Project-level templates directory
         'APP_DIRS': True, # This allows Django to find templates in app_name/templates/app_name/
         'OPTIONS': {
             'context_processors': [
@@ -85,26 +83,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'loveny_project.wsgi.application'
 
-# Removed: Django Channels ASGI Application
-# ASGI_APPLICATION = 'loveny_project.asgi.application'
-
-# Removed: Channels Layer configuration
-# CHANNEL_LAYERS = { ... }
-
 
 # Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
+# https://docs.djangoproject.com/en/5.0/topics/databases/
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
+        conn_max_age=600 # Optional: Reconnect after 10 minutes to prevent stale connections
+    )
 }
 
 
 # Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
+# https://docs.djangoproject.com/en/5.0/topics/auth/passwords/
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -121,13 +112,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.UserProfile'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Africa/Lagos' # Set timezone to Lagos, Nigeria for relevance
+TIME_ZONE = 'Africa/Lagos' # Keeping this as it's a general setting, not deployment-specific
 
 USE_I18N = True
 
@@ -135,37 +129,38 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
+# https://docs.djangoproject.com/en/5.0/topics/files/static-files/
 
-STATIC_URL = '/static/'
-# The directory where `collectstatic` will gather all static files for deployment
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-# Directories where Django will look for additional static files (e.g., global static folder)
+STATIC_URL = 'static/'
+# This is where Django will look for additional static files
+# beyond what's in app-specific static folders during development.
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    BASE_DIR / 'static', # Your project-level static directory
 ]
+# The absolute path to the directory where `python manage.py collectstatic` will gather all static files for deployment
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
-# Media files (user-uploaded content like profile pictures)
+# Media files (user-uploaded content)
 MEDIA_URL = '/media/'
-# The directory where user-uploaded media files will be stored
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media' # This will be C:\Users\yanex\Documents\LOVENY_App\media
+
+
+# Default profile picture path for users without one.
+# This should be a path relative to STATIC_URL.
+DEFAULT_PROFILE_PICTURE_PATH = 'default_avatar.png' # Assuming it's directly under your /static/ folder
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model - IMPORTANT!
-# Tells Django to use your custom UserProfile model for authentication.
-AUTH_USER_MODEL = 'accounts.UserProfile'
 
 # Redirect URLs after login/logout
-LOGIN_REDIRECT_URL = 'profile_edit' # Redirect to user's profile edit page after successful login
-LOGOUT_REDIRECT_URL = 'login' # Redirect to login page after logout
+LOGIN_REDIRECT_URL = 'accounts:profile_edit'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
-
-# Paystack API Keys (Replace with your actual keys!)
-# IMPORTANT: In production, store these securely (e.g., environment variables)
-PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', 'pk_test_your_paystack_public_key') # <--- LOAD FROM ENV
-PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_your_paystack_secret_key') # <--- LOAD FROM ENV
+# Paystack Settings
+# Load Paystack API keys from environment variables
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')

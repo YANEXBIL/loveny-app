@@ -1,174 +1,654 @@
-<!-- accounts/templates/accounts/profile_edit.html -->
-{% extends 'accounts/base.html' %}
-{# IMPORTANT: No {% load tailwind_filters %} here as it's removed and caused errors #}
+{% extends 'accounts/base.html' %} {# Extends the base template #}
+{% load static %} {# Load static files for default_avatar.png #}
+{% load widget_tweaks %} {# Load widget_tweaks for form field styling #}
 
-{% block title %}Edit Profile{% endblock %}
+{% block title %}Edit Your Profile{% endblock %} {# Set the page title #}
 
+{# The main content of the profile editor page #}
 {% block content %}
-<div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4 py-8">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl">
-        <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 text-center mb-8">
-            Edit Your Profile
-        </h1>
+<div class="flex justify-center items-center p-6 relative">
+    <div class="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-3xl z-10">
+        <h2 class="text-3xl font-bold text-center text-pink-600 mb-6">Edit Your Profile</h2>
 
-        {% if messages %}
-            <div class="mb-4">
-                {% for message in messages %}
-                    <div class="p-3 mb-2 rounded-md text-sm {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
+        <form id="profileForm" class="space-y-6">
+            {% csrf_token %} {# Essential for Django POST forms #}
+            {# Pass initial image data from Django context to JavaScript with a fallback #}
+            <script type="application/json" id="initialImagesData">{% if initial_images_json %}{{ initial_images_json|safe }}{% else %}{"data": []}{% endif %}</script>
+
+            {# Hidden file input for adding multiple gallery images #}
+            <input type="file" id="allImagesInput" accept="image/*" multiple />
+
+            <div class="flex flex-col items-center mt-4">
+                {# Main profile picture display area #}
+                <div id="mainProfilePicContainer" class="relative w-28 h-28 rounded-full overflow-hidden border-2 border-pink-400 bg-gray-100 hover:opacity-80 transition cursor-pointer">
+                    {# Correctly reference the default avatar using the static tag #}
+                    <img id="mainProfilePic" src="{% if user_profile.profile_picture %}{{ user_profile.profile_picture.url }}{% else %}{% static 'default_avatar.png' %}{% endif %}" alt="Main Profile" class="w-full h-full object-cover" />
+                    <div class="absolute bottom-0 w-full bg-black bg-opacity-40 text-white text-xs text-center py-1">Tap to change/preview</div>
+                </div>
+
+                {# Button to trigger the hidden file input #}
+                <label for="allImagesInput" class="mt-4 px-4 py-1 bg-pink-500 text-white text-sm rounded-full shadow hover:bg-pink-600 cursor-pointer transition">
+                    ➕ Add Images
+                </label>
             </div>
-        {% endif %}
 
-        <form method="post" enctype="multipart/form-data" class="space-y-6">
-            {% csrf_token %}
-            
-            {# Main Profile Picture Display & Input #}
-            <div class="mb-6 border-b pb-6 border-gray-200">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Main Profile Picture</h2>
-                <div class="flex items-center space-x-6">
-                    <div class="flex-shrink-0">
-                        <img id="main-profile-preview" 
-                             src="{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% else %}/static/images/default_avatar.png{% endif %}" 
-                             alt="Current Profile Picture" 
-                             class="w-32 h-32 object-cover rounded-full border-4 border-pink-400 shadow-md">
-                    </div>
-                    <div>
-                        <label for="{{ form.profile_picture.id_for_label }}" class="btn btn-secondary cursor-pointer">
-                            Change Main Picture
+            <p id="imageLimitWarning" class="text-sm text-red-500 text-center mt-2 hidden">⚠️ Only 20 images allowed.</p>
+
+            <div class="text-center mt-6 mb-2">
+                <h3 class="text-lg font-bold text-pink-600 flex items-center justify-center gap-2">
+                    💞 Gallery Photos
+                    <span class="text-sm font-medium text-gray-500">(Click to preview, use button to set main)</span>
+                </h3>
+                <div class="w-20 h-1 mx-auto bg-pink-400 rounded-full mt-1"></div>
+            </div>
+
+            {# Container for dynamically loaded gallery images #}
+            <div id="galleryPreview" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[300px] overflow-y-auto">
+                {# Images will be rendered here by JavaScript #}
+            </div>
+
+            {# Django form fields rendered individually with widget_tweaks for styling #}
+            <div class="space-y-4">
+                {% for field in profile_form %}
+                    <div class="flex flex-col">
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ field.label }}
                         </label>
-                        {# No need for widget_tweaks here, Django's FileInput is rendered directly #}
-                        {{ form.profile_picture }} 
-                        {% for error in form.profile_picture.errors %}
-                            <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                        {# Apply Tailwind classes based on input type #}
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            {{ field|add_class:"h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500" }}
+                        {% elif field.field.widget.input_type == 'radio' %}
+                            {{ field|add_class:"h-4 w-4 text-pink-600 border-gray-300 focus:ring-pink-500" }}
+                        {% elif field.field.widget.input_type == 'file' %}
+                            {# File input is handled by custom button and hidden, no direct styling #}
+                            {{ field }}
+                        {% else %}
+                            {{ field|add_class:"mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-pink-500 focus:ring-pink-500 sm:text-sm p-2" }}
+                        {% endif %}
+
+                        {% if field.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                         {% endfor %}
-                        <p class="text-gray-500 text-sm mt-2">Recommended: Square image (e.g., 500x500px).</p>
                     </div>
-                </div>
-            </div>
-            
-            {# For multiple images, we also need to include the formset. This template currently does not include it. #}
-            {# I will add a simplified placeholder for now to ensure the page loads. #}
-            {# To fully re-implement multiple images, you'll need the ProfileImageFormSet in views and forms. #}
-            {# For now, focusing on fixing the 500 error by removing 'tailwind_filters' dependency. #}
-
-
-            {# Name Fields #}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="{{ form.first_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">First Name</label>
-                    {{ form.first_name.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.first_name.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-                <div>
-                    <label for="{{ form.last_name.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
-                    {{ form.last_name.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.last_name.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            {# Other Profile Fields #}
-            <div>
-                <label for="{{ form.bio.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Bio</label>
-                {{ form.bio.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm', 'rows': 4}) }}
-                {% for error in form.bio.errors %}
-                    <p class="text-red-500 text-xs italic">{{ error }}</p>
                 {% endfor %}
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="{{ form.gender.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Gender</label>
-                    {{ form.gender.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.gender.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-                <div>
-                    <label for="{{ form.date_of_birth.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Date of Birth</label>
-                    {{ form.date_of_birth.as_widget(attrs={'type': 'date', 'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.date_of_birth.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div>
-                <label for="{{ form.location.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Location</label>
-                {{ form.location.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                {% for error in form.location.errors %}
-                    <p class="text-red-500 text-xs italic">{{ error }}</p>
-                {% endfor %}
-            </div>
-
-            <div>
-                <label for="{{ form.phone_number.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">WhatsApp Phone Number</label>
-                {{ form.phone_number.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                <p class="text-gray-500 text-xs italic mt-1">Include country code (e.g., +2348012345678)</p>
-                {% for error in form.phone_number.errors %}
-                    <p class="text-red-500 text-xs italic">{{ error }}</p>
-                {% endfor %}
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="{{ form.user_type.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">User Type</label>
-                    {{ form.user_type.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.user_type.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-                <div>
-                    <label for="{{ form.seeking.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Seeking</label>
-                    {{ form.seeking.as_widget(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm'}) }}
-                    {% for error in form.seeking.errors %}
-                        <p class="text-red-500 text-xs italic">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="mt-8 flex justify-center">
-                <button type="submit" class="btn btn-primary px-8 py-3">Save Changes</button>
+            <div class="pt-4">
+                <button type="submit" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-xl transition">
+                    Save Profile
+                </button>
             </div>
         </form>
+    </div>
+
+    {# Lightbox modal structure #}
+    <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+        <button id="modalCloseBtn" aria-label="Close preview">&times;</button>
+        <img id="modalImg" src="" alt="Image preview" />
     </div>
 </div>
 {% endblock content %}
 
+{# Page-specific JavaScript #}
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Main Profile Picture Preview
-        const mainProfileInput = document.getElementById('{{ form.profile_picture.id_for_label }}');
-        const mainProfilePreview = document.getElementById('main-profile-preview');
+// Grab CSRF token from cookie (Django default)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
-        if (mainProfileInput && mainProfilePreview) {
-            mainProfileInput.addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        mainProfilePreview.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    // Revert to default or current if no file selected
-                    mainProfilePreview.src = mainProfilePreview.dataset.originalSrc || "{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% else %}/static/images/default_avatar.png{% endif %}";
-                }
-            });
-            // Store original src to revert if needed
-            mainProfilePreview.dataset.originalSrc = mainProfilePreview.src;
+// Function to render gallery images
+function renderGallery(imagesData) {
+    console.log("DEBUG_RENDER: renderGallery called with:", JSON.parse(JSON.stringify(imagesData))); 
+    const galleryPreview = document.getElementById('galleryPreview');
+    galleryPreview.innerHTML = ''; 
+
+    imagesData.forEach(img => {
+        console.log("DEBUG_RENDER: Processing gallery item:", img.id, "is_main:", img.is_main, "url:", img.image__url ? img.image__url.substring(0, 50) + "..." : "No URL"); 
+        const imgContainer = document.createElement('div');
+        imgContainer.classList.add('relative', 'w-full', 'aspect-square', 'bg-gray-100', 'rounded-lg', 'overflow-hidden', 'shadow-md');
+        imgContainer.dataset.imageId = img.id; 
+        if (img.is_new_file) {
+            imgContainer.dataset.fileName = img.file_name; 
+            imgContainer.dataset.fileSize = img.file_size; 
         }
 
-        // The JavaScript for multiple images and formset management
-        // (updateAddPhotoButtons, new image previews, delete checkboxes)
-        // has been removed from this version to simplify and ensure the page loads.
-        // It will be added back in a subsequent update once the core 500 error is resolved.
+        const imgElement = document.createElement('img');
+        imgElement.src = img.image__url;
+        imgElement.alt = 'Gallery image';
+        imgElement.classList.add('w-full', 'h-full', 'object-cover', 'cursor-pointer');
+        imgElement.addEventListener('click', () => openModal(img.image__url));
+        imgContainer.appendChild(imgElement);
+
+        // Overlay for main indicator
+        if (img.is_main) {
+            const mainIndicator = document.createElement('div');
+            mainIndicator.classList.add('absolute', 'top-1', 'left-1', 'bg-pink-600', 'text-white', 'text-xs', 'px-2', 'py-1', 'rounded-full', 'font-bold');
+            mainIndicator.textContent = 'MAIN';
+            imgContainer.appendChild(mainIndicator);
+        }
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button'; // Explicitly set to button type
+        deleteBtn.innerHTML = '&times;';
+        deleteBtn.classList.add('absolute', 'top-1', 'right-1', 'bg-red-500', 'text-white', 'rounded-full', 'w-6', 'h-6', 'flex', 'items-center', 'justify-center', 'text-sm', 'font-bold', 'opacity-80', 'hover:opacity-100', 'z-20');
+        deleteBtn.title = 'Delete image';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            showConfirmation('Are you sure you want to delete this image?', () => {
+                console.log("DEBUG_DELETE: Deleting image:", img.id, img.file_name, "is_main:", img.is_main); 
+
+                if (!img.is_new_file) { 
+                    const deleteInput = document.createElement('input');
+                    deleteInput.type = 'hidden';
+                    deleteInput.name = 'images_to_delete';
+                    deleteInput.value = img.id;
+                    document.getElementById('profileForm').appendChild(deleteInput);
+                } else { 
+                    const index = newFiles.findIndex(f => f.name === img.file_name && f.size === img.file_size);
+                    if (index > -1) {
+                        newFiles.splice(index, 1);
+                        console.log("DEBUG_DELETE: Removed from newFiles array. New newFiles:", JSON.parse(JSON.stringify(newFiles.map(f => ({name: f.name, size: f.size}))))); 
+                    }
+                }
+                
+                allCurrentImages = allCurrentImages.filter(item => {
+                    if (item.is_new_file) {
+                        return !(item.file_name === img.file_name && item.file_size === img.file_size);
+                    } else {
+                        return item.id !== img.id;
+                    }
+                });
+                console.log("DEBUG_DELETE: allCurrentImages after filter:", JSON.parse(JSON.stringify(allCurrentImages))); 
+
+                if (img.is_main) {
+                    console.log("DEBUG_DELETE: Deleted main image. Finding new main."); 
+                    const firstGalleryImage = allCurrentImages.find(item => !item.is_main && item.id !== 'main_direct_upload' && item.id !== 'default_fallback_id');
+                    
+                    if (firstGalleryImage) {
+                        allCurrentImages = allCurrentImages.map(item => ({
+                            ...item, 
+                            is_main: (item.id === firstGalleryImage.id || (item.is_new_file && item.file_name === firstGalleryImage.file_name && item.file_size === firstGalleryImage.file_size))
+                        }));
+                        let mainImageIdInput = document.querySelector('input[name="main_image_id"]');
+                        if (!mainImageIdInput) {
+                            mainImageIdInput = document.createElement('input');
+                            mainImageIdInput.type = 'hidden';
+                            mainImageIdInput.name = 'main_image_id';
+                            document.getElementById('profileForm').appendChild(mainImageIdInput);
+                        }
+                        mainImageIdInput.value = firstGalleryImage.id || `new_file_as_main:${firstGalleryImage.file_name}:${firstGalleryImage.file_size}`;
+                        
+                        if (firstGalleryImage.is_new_file) {
+                             const index = newFiles.findIndex(f => f.name === firstGalleryImage.file_name && f.size === firstGalleryImage.file_size);
+                             if (index > -1) {
+                                 const fileObjectBeingPromoted = newFiles.splice(index, 1)[0];
+                                 const dataTransfer = new DataTransfer();
+                                 dataTransfer.items.add(fileObjectBeingPromoted);
+                                 mainProfilePicUploadInput.files = dataTransfer.files;
+                                 console.log("DEBUG_DELETE: New main is a new file, setting mainProfilePicUploadInput."); 
+                             }
+                        } else {
+                            mainProfilePicUploadInput.value = '';
+                        }
+
+                        console.log("DEBUG_DELETE: Promoted new main image:", firstGalleryImage.id || firstGalleryImage.file_name); 
+                    } else {
+                        console.log("DEBUG_DELETE: No other gallery images, reverting to default avatar."); 
+                        document.getElementById('mainProfilePic').src = "{% static 'default_avatar.png' %}";
+                        let mainImageIdInput = document.querySelector('input[name="main_image_id"]');
+                        if (mainImageIdInput) { mainImageIdInput.remove(); }
+                        mainProfilePicUploadInput.value = ''; 
+                        allCurrentImages = allCurrentImages.map(item => ({...item, is_main: false}));
+                    }
+                }
+                renderAllImages(allCurrentImages); 
+            });
+        });
+        imgContainer.appendChild(deleteBtn);
+
+        // Set as Main button (only for non-main images)
+        if (!img.is_main) { 
+            const setMainBtn = document.createElement('button');
+            setMainBtn.type = 'button'; // Explicitly set to button type
+            setMainBtn.textContent = 'Set Main';
+            setMainBtn.classList.add('absolute', 'bottom-1', 'left-1', 'bg-pink-500', 'text-white', 'text-xs', 'px-2', 'py-1', 'rounded-full', 'opacity-80', 'hover:opacity-100', 'z-20');
+            setMainBtn.title = 'Set as main profile picture';
+            setMainBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                console.log("DEBUG_SETMAIN: 'Set Main' clicked for image:", img.id, img.file_name, "Current is_main:", img.is_main); 
+                
+                document.getElementById('mainProfilePic').src = img.image__url;
+
+                let mainImageIdInput = document.querySelector('input[name="main_image_id"]');
+                if (!mainImageIdInput) {
+                    mainImageIdInput = document.createElement('input');
+                    mainImageIdInput.type = 'hidden';
+                    mainImageIdInput.name = 'main_image_id';
+                    document.getElementById('profileForm').appendChild(mainImageIdInput);
+                }
+                mainImageIdInput.value = img.id || `new_file_as_main:${img.file_name}:${img.file_size}`; 
+                console.log("DEBUG_SETMAIN: mainImageIdInput.value set to:", mainImageIdInput.value); 
+
+                if (img.is_new_file) {
+                    console.log("DEBUG_SETMAIN: Promoting new file to main. Current newFiles before splice:", JSON.parse(JSON.stringify(newFiles.map(f => ({name: f.name, size: f.size}))))); 
+                    const index = newFiles.findIndex(f => f.name === img.file_name && f.size === img.file_size);
+                    if (index > -1) {
+                        const fileObjectBeingPromoted = newFiles.splice(index, 1)[0]; 
+                        console.log("DEBUG_SETMAIN: Removed file from newFiles. newFiles after splice:", JSON.parse(JSON.stringify(newFiles.map(f => ({name: f.name, size: f.size}))))); 
+
+                        let mainProfileFileInput = document.querySelector('input[name="profile_picture_file"]');
+                        if (!mainProfileFileInput) {
+                            mainProfileFileInput = document.createElement('input');
+                            mainProfileFileInput.type = 'file'; 
+                            mainProfileFileInput.name = 'profile_picture_file';
+                            mainProfileFileInput.classList.add('hidden');
+                            document.getElementById('profileForm').appendChild(mainProfileFileInput);
+                        }
+                        const dataTransfer = new DataTransfer();
+                        const fileToSet = img.file_object || dataURLtoFile(img.image__url, img.file_name);
+                        dataTransfer.items.add(fileToSet);
+                        mainProfileFileInput.files = dataTransfer.files;
+                        console.log("DEBUG_SETMAIN: Set profile_picture_file input with new main file."); 
+                    }
+                } else {
+                    const prevMainFileInput = document.querySelector('input[name="profile_picture_file"]');
+                    if (prevMainFileInput) {
+                        prevMainFileInput.value = ''; 
+                        console.log("DEBUG_SETMAIN: Cleared prevMainFileInput for existing image promotion."); 
+                    }
+                }
+                
+                console.log("DEBUG_SETMAIN: allCurrentImages BEFORE map (marking is_main):", JSON.parse(JSON.stringify(allCurrentImages))); 
+                allCurrentImages = allCurrentImages.map(currentImg => {
+                    const isSelectedAsMain = (currentImg.id === img.id && !currentImg.is_new_file) || 
+                                             (currentImg.is_new_file && currentImg.file_name === img.file_name && currentImg.file_size === img.file_size); 
+                    return { ...currentImg, is_main: isSelectedAsMain };
+                });
+                console.log("DEBUG_SETMAIN: allCurrentImages AFTER map (should have ONE is_main=true):", JSON.parse(JSON.stringify(allCurrentImages))); 
+
+                renderAllImages(allCurrentImages); 
+            });
+            imgContainer.appendChild(setMainBtn);
+        }
+
+        galleryPreview.appendChild(imgContainer);
     });
+}
+
+// Convert data URL to File object
+function dataURLtoFile(dataurl, filename) {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+}
+
+
+// Image Limit for Gallery (adjust as needed)
+const MAX_GALLERY_IMAGES = 20; 
+let currentGalleryImageCount = 0; 
+const newFiles = []; 
+let allCurrentImages = []; 
+
+function updateImageLimitWarning() {
+    console.log("DEBUG_WARNING: updateImageLimitWarning called."); 
+    const nonMainImages = allCurrentImages.filter(img => !img.is_main && img.id !== 'default_fallback_id');
+    currentGalleryImageCount = nonMainImages.length;
+    console.log("DEBUG_WARNING: currentGalleryImageCount (non-main gallery images):", currentGalleryImageCount); 
+
+    const imageLimitWarning = document.getElementById('imageLimitWarning');
+    if (currentGalleryImageCount >= MAX_GALLERY_IMAGES) {
+        imageLimitWarning.classList.remove('hidden');
+    } else {
+        imageLimitWarning.classList.add('hidden');
+    }
+}
+
+// Function to render all images (main + gallery)
+function renderAllImages(imagesData) {
+    console.log("DEBUG_RENDER_ALL: renderAllImages called with data. Full allCurrentImages state BEFORE filtering for gallery:", JSON.parse(JSON.stringify(allCurrentImages))); 
+
+    const mainPicData = imagesData.find(img => img.is_main);
+    if (mainPicData) {
+        document.getElementById('mainProfilePic').src = mainPicData.image__url;
+        console.log("DEBUG_RENDER_ALL: Main profile pic updated to:", mainPicData.image__url ? mainPicData.image__url.substring(0, 50) + "..." : "No URL"); 
+    } else {
+        document.getElementById('mainProfilePic').src = "{% static 'default_avatar.png' %}"; 
+        console.log("DEBUG_RENDER_ALL: Main profile pic set to default avatar."); 
+        const mainImageIdInput = document.querySelector('input[name="main_image_id"]');
+        if (mainImageIdInput) { mainImageIdInput.remove(); console.log("DEBUG_RENDER_ALL: Removed hidden input for main_image_id."); }
+    }
+
+    const galleryRenderList = allCurrentImages.filter(img => {
+        const isDefaultFallback = img.id === 'default_fallback_id';
+        const isMainDirectUpload = img.id === 'main_direct_upload'; 
+        return !img.is_main && !isDefaultFallback && !isMainDirectUpload;
+    });
+    
+    galleryRenderList.sort((a, b) => {
+        if (a.order === b.order) {
+            const idA = (typeof a.id === 'string' && a.id.startsWith('new_file_as_main:')) ? Infinity : (a.id === null ? Infinity : a.id);
+            const idB = (typeof b.id === 'string' && b.id.startsWith('new_file_as_main:')) ? Infinity : (b.id === null ? Infinity : b.id);
+            return idA - idB;
+        }
+        return a.order - b.order;
+    });
+    console.log("DEBUG_RENDER_ALL: Images passed to renderGallery (should be only non-main gallery images):", JSON.parse(JSON.stringify(galleryRenderList))); 
+    renderGallery(galleryRenderList);
+    updateImageLimitWarning();
+}
+
+
+// Pre-populate gallery with initial images from Django context
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DEBUG_INIT: DOMContentLoaded fired."); 
+    try {
+        const initialImagesDataElement = document.getElementById('initialImagesData');
+        if (initialImagesDataElement && initialImagesDataElement.textContent) {
+            const parsedData = JSON.parse(initialImagesDataElement.textContent);
+            console.log("DEBUG_INIT: Raw initialImagesData from backend:", JSON.parse(initialImagesDataElement.textContent)); 
+            if (parsedData && Array.isArray(parsedData.data)) {
+                allCurrentImages = parsedData.data;
+                allCurrentImages = allCurrentImages.map(img => {
+                    if (img.is_new_file && img.image__url && !img.file_object) { 
+                         img.file_object = dataURLtoFile(img.image__url, img.file_name || 'image.png');
+                    }
+                    return img;
+                });
+                console.log("DEBUG_INIT: allCurrentImages after initial parsing and file_object addition:", JSON.parse(JSON.stringify(allCurrentImages))); 
+                renderAllImages(allCurrentImages);
+            } else {
+                console.warn("DEBUG_INIT: initialImagesData does not contain a 'data' array or is empty.");
+                allCurrentImages = []; 
+                renderAllImages([]);
+            }
+        } else {
+            console.warn("DEBUG_INIT: Element with ID 'initialImagesData' not found or is empty. Assuming no initial images.");
+            allCurrentImages = []; 
+            renderAllImages([]);
+        }
+    } catch (error) {
+        console.error("DEBUG_INIT_ERROR: Error parsing initialImagesData JSON:", error);
+        allCurrentImages = []; 
+        renderAllImages([]);
+    }
+});
+
+const mainProfilePicUploadInput = document.createElement('input');
+mainProfilePicUploadInput.type = 'file';
+mainProfilePicUploadInput.id = 'mainProfilePicUploadInput';
+mainProfilePicUploadInput.accept = 'image/*';
+mainProfilePicUploadInput.name = 'profile_picture_file'; 
+document.getElementById('profileForm').appendChild(mainProfilePicUploadInput);
+
+// MODIFIED: Logic for mainProfilePicContainer click
+document.getElementById('mainProfilePicContainer').addEventListener('click', function() {
+    const mainPic = document.getElementById('mainProfilePic');
+    const defaultAvatarSrc = "{% static 'default_avatar.png' %}";
+
+    if (mainPic.src.includes(defaultAvatarSrc) || mainPic.src === window.location.origin + defaultAvatarSrc) {
+        // If it's the default avatar, trigger file upload
+        console.log("DEBUG_CLICK: Main profile picture (default) clicked. Triggering file input."); 
+        mainProfilePicUploadInput.click(); 
+    } else {
+        // If it's a custom uploaded image, open modal preview
+        console.log("DEBUG_CLICK: Main profile picture (custom) clicked. Opening modal."); 
+        openModal(mainPic.src);
+    }
+});
+
+mainProfilePicUploadInput.addEventListener('change', function(event) {
+    console.log("DEBUG_MAIN_UPLOAD: mainProfilePicUploadInput change event fired (direct main pic upload)."); 
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // FIX: Use template literals for cleaner console logging
+            console.log(`DEBUG_MAIN_UPLOAD: FileReader loaded for direct main pic. New src: ${e.target.result ? e.target.result.substring(0, 50) + "..." : "No URL"}`); 
+            document.getElementById('mainProfilePic').src = e.target.result;
+            console.log("DEBUG_MAIN_UPLOAD: allCurrentImages BEFORE direct main pic is_main reset:", JSON.parse(JSON.stringify(allCurrentImages))); 
+            allCurrentImages = allCurrentImages.map(img => ({ ...img, is_main: false }));
+            console.log("DEBUG_MAIN_UPLOAD: allCurrentImages AFTER direct main pic is_main reset:", JSON.parse(JSON.stringify(allCurrentImages))); 
+            
+            const mainImageIdInput = document.querySelector('input[name="main_image_id"]');
+            if (mainImageIdInput) { 
+                mainImageIdInput.remove(); 
+                console.log("DEBUG_MAIN_UPLOAD: Removed hidden input for main_image_id."); 
+            }
+            
+            renderAllImages(allCurrentImages);
+        }
+        reader.readAsDataURL(file);
+    }
+});
+
+
+document.getElementById('allImagesInput').addEventListener('change', function(event) {
+    console.log("DEBUG_GALLERY_UPLOAD: allImagesInput change event fired for gallery images."); 
+    const files = Array.from(event.target.files);
+    const imageLimitWarning = document.getElementById('imageLimitWarning');
+
+    const nonMainImagesCount = allCurrentImages.filter(img => !img.is_main && img.id !== 'default_fallback_id').length;
+    const availableSlots = MAX_GALLERY_IMAGES - nonMainImagesCount;
+    console.log(`DEBUG_GALLERY_UPLOAD: Uploading ${files.length} files. Current non-main images: ${nonMainImagesCount}. Available slots: ${availableSlots}`); 
+
+    if (files.length > availableSlots) {
+        imageLimitWarning.classList.remove('hidden');
+        showMessage(`You can only upload ${MAX_GALLERY_IMAGES} images (excluding main). You have ${nonMainImagesCount} already, so only ${availableSlots} more can be added.`, 'warning');
+        files.splice(availableSlots); 
+        console.log(`DEBUG_GALLERY_UPLOAD: Trimmed files to upload: ${files.length}`); 
+    } else {
+        imageLimitWarning.classList.add('hidden');
+    }
+
+    files.forEach(file => {
+        const isDuplicate = allCurrentImages.some(img => 
+            img.is_new_file && img.file_name === file.name && img.file_size === file.size
+        );
+
+        if (!isDuplicate) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // FIX: Use template literals for cleaner console logging
+                console.log(`DEBUG_GALLERY_UPLOAD: FileReader loaded for gallery pic: ${e.target.result ? e.target.result.substring(0, 50) + "..." : "No URL"}`); 
+                const newImageObj = {
+                    id: null, 
+                    image__url: e.target.result, 
+                    order: -1, 
+                    is_main: false, 
+                    is_new_file: true, 
+                    file_name: file.name, 
+                    file_size: file.size, 
+                    file_object: file 
+                };
+                allCurrentImages.push(newImageObj);
+                newFiles.push(file); 
+                console.log("DEBUG_GALLERY_UPLOAD: Added new gallery image to allCurrentImages and newFiles. New allCurrentImages:", JSON.parse(JSON.stringify(allCurrentImages))); 
+                renderAllImages(allCurrentImages); 
+            }
+            reader.readAsDataURL(file);
+        } else {
+            showMessage(`Image "${file.name}" is already in the gallery.`, 'info');
+            console.log("DEBUG_GALLERY_UPLOAD: Duplicate image skipped:", file.name); 
+        }
+    });
+
+    event.target.value = ''; 
+});
+
+
+const modal = document.getElementById('modal');
+const modalImg = document.getElementById('modalImg');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+function openModal(src) {
+    modalImg.src = src;
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden'; // Prevent scrolling background
+}
+
+function closeModal() {
+    modal.classList.remove('show');
+    document.body.style.overflow = ''; // Re-enable scrolling
+}
+
+modalCloseBtn.addEventListener('click', closeModal);
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) { // Close only if clicking on the backdrop
+        closeModal();
+    }
+});
+
+function showMessage(message, type = 'info') {
+    console.log(`MESSAGE (${type.toUpperCase()}): ${message}`); 
+    const messageBox = document.createElement('div');
+    messageBox.classList.add('fixed', 'bottom-4', 'right-4', 'p-4', 'rounded-lg', 'shadow-lg', 'text-white', 'z-50', 'flex', 'items-center', 'space-x-2');
+
+    if (type === 'success') {
+        messageBox.classList.add('bg-green-500');
+    } else if (type === 'error') {
+        messageBox.classList.add('bg-red-500');
+    } else if (type === 'warning') {
+        messageBox.classList.add('bg-yellow-500');
+    } else { 
+        messageBox.classList.add('bg-blue-500');
+    }
+
+    messageBox.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(messageBox);
+
+    setTimeout(() => {
+        messageBox.remove();
+    }, 3000); 
+}
+
+function showConfirmation(message, onConfirm) {
+    console.log("DEBUG_CONFIRM: Showing confirmation modal:", message); 
+    const confirmationModal = document.createElement('div');
+    confirmationModal.classList.add('fixed', 'inset-0', 'bg-black', 'bg-opacity-75', 'flex', 'items-center', 'justify-center', 'z-50');
+    confirmationModal.innerHTML = `
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
+            <p class="text-lg font-semibold mb-6">${message}</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmYes" type="button" class="px-6 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Yes</button>
+                <button id="confirmNo" type="button" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmationModal);
+
+    document.getElementById('confirmYes').addEventListener('click', () => {
+        onConfirm();
+        confirmationModal.remove();
+        console.log("DEBUG_CONFIRM: Confirmation Yes clicked."); 
+    });
+
+    document.getElementById('confirmNo').addEventListener('click', () => {
+        confirmationModal.remove();
+        console.log("DEBUG_CONFIRM: Confirmation No clicked."); 
+    });
+}
+
+
+document.getElementById('profileForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    console.log("DEBUG_SUBMIT: Profile form submitted."); 
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    newFiles.forEach((file, index) => {
+        formData.append(`gallery_image_${index}`, file); 
+    });
+    
+    try {
+        const response = await fetch("{% url 'accounts:ajax_profile_save' %}", {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData,
+        });
+
+        console.log("DEBUG_SUBMIT: Fetch response received. Status:", response.status); 
+
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const errData = await response.json();
+                let errorMessages = 'Error saving profile:\n';
+                if (errData.message) {
+                    errorMessages += `Server: ${errData.message}\n`;
+                }
+                for (const field in errData.errors) {
+                    const fieldName = (field !== '__all__') ? `Profile.${field.replace('_', ' ').charAt(0).toUpperCase() + field.replace('_', ' ').slice(1)}` : 'Form';
+                    errorMessages += `${fieldName}: ${errData.errors[field].join(', ')}\n`;
+                }
+                console.error('DEBUG_SUBMIT_ERROR: Django Form Errors:', errData.errors);
+                showMessage(errorMessages, 'error');
+            } else {
+                const errorText = await response.text();
+                console.error('DEBUG_SUBMIT_ERROR: Server returned non-JSON response (likely HTML error page):', response.status, errorText);
+                showMessage('An unexpected server error occurred. See console for details.', 'error');
+            }
+            return;
+        }
+
+        const data = await response.json();
+        console.log("DEBUG_SUBMIT: Successful fetch. Response data:", data); 
+
+        if (data.success) {
+            showMessage('✅ Profile saved!', 'success');
+            newFiles.length = 0; 
+            if (data.updated_gallery_data) {
+                allCurrentImages = data.updated_gallery_data;
+                allCurrentImages = allCurrentImages.map(img => {
+                    if (img.is_new_file && img.image__url && !img.file_object) { 
+                        img.file_object = dataURLtoFile(img.image__url, img.file_name || 'image.png');
+                    }
+                    return img;
+                });
+                console.log("DEBUG_SUBMIT: allCurrentImages after backend update and file_object recreation:", JSON.parse(JSON.stringify(allCurrentImages))); 
+                renderAllImages(allCurrentImages); 
+            }
+            
+            if (data.redirect_url) {
+                console.log("DEBUG_SUBMIT: Redirecting to:", data.redirect_url); 
+                window.location.href = data.redirect_url; 
+            } else {
+                console.warn('DEBUG_SUBMIT: Profile saved successfully, but no redirect_url provided. Reloading page.');
+                window.location.reload(); 
+            }
+        } else {
+            showMessage('Failed to save profile: ' + (data.message || 'Unknown reason.'), 'error');
+            console.error('DEBUG_SUBMIT_ERROR: Profile save failed (backend returned success:false):', data);
+        }
+    } catch (error) {
+        console.error('DEBUG_SUBMIT_ERROR: Network or unexpected JavaScript error saving profile:', error);
+        showMessage('Unexpected error saving profile: ' + error.message, 'error');
+    }
+});
 </script>
 {% endblock extra_js %}
