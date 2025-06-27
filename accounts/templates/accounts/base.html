@@ -316,8 +316,10 @@
 
         {# Sidebar navigation container #}
         {# On mobile, it's fixed and has a background. On md (desktop), it's relative, transparent, and its content is aligned. #}
-        <div id="sidebar-nav" class="fixed inset-y-0 left-0 w-64 text-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col p-4 z-40 
-                                      md:relative md:w-auto md:translate-x-0 md:bg-transparent md:shadow-none md:flex-row md:items-center md:space-x-4 md:p-0"> {# Applied md:items-center #}
+        <div id="sidebar-nav" 
+             class="fixed inset-y-0 left-0 w-64 text-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col p-4 z-40 
+                    md:relative md:w-auto md:translate-x-0 md:shadow-none md:flex-row md:items-center md:space-x-4 md:p-0"
+             style="background-color: var(--sidebar-bg-color);"> {# Added inline style for background color #}
             {# Close button for mobile sidebar #}
             <button id="close-sidebar" class="md:hidden text-white text-2xl cursor-pointer z-50 absolute top-4 right-4">
                 <i class="fas fa-times"></i>
@@ -327,7 +329,7 @@
             {# Removed the redundant inner div. Links are now direct children of #sidebar-nav on desktop. #}
             <a href="{% url 'accounts:homepage' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Home</a>
             <a href="{% url 'accounts:browse_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Browse</a>
-            <a href="{% url 'accounts:matches' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Matches</a>
+            <a href="{% url 'accounts:matches_view' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Matches</a>
             <a href="{% url 'accounts:swipe_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Swipe</a> {# Added Swipe button #}
             <a href="{% url 'accounts:profile' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">My Profile</a>
             {# Conditional display for Premium link #}
