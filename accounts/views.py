@@ -18,6 +18,9 @@ from django.core.files.storage import default_storage
 from django.views.decorators.http import require_POST
 from django.contrib import messages 
 from django.utils import timezone 
+import secrets # For generating unique references
+import uuid # For generating unique transaction IDs for Paystack
+from decimal import Decimal # To handle monetary values precisely
 
 
 # Import all models and forms
@@ -52,7 +55,18 @@ class SignUpView(CreateView):
 def profile_view(request):
     """Displays the current logged-in user's profile."""
     user_profile = request.user
-    return render(request, 'accounts/profile.html', {'user_profile': user_profile})
+    # Fetch user's subscription
+    user_subscription = None
+    try:
+        user_subscription = UserSubscription.objects.get(user=user_profile)
+    except UserSubscription.DoesNotExist:
+        pass # No subscription found for the user
+
+    context = {
+        'user_profile': user_profile,
+        'user_subscription': user_subscription, # Pass subscription to template
+    }
+    return render(request, 'accounts/profile.html', context)
 
 
 @login_required
@@ -646,46 +660,45 @@ def swipe_profiles_view(request):
     for profile in profiles_to_swipe:
         # Explicitly check for non-empty username before adding to data for template
         if not profile.username:
-            print(f"Skipping profile with empty username (ID: {profile.id}) in swipe_profiles_view.")
             continue
 
         all_profile_images_urls = []
-        # Ensure profile.profile_picture is always included if it exists and is not the default
         if profile.profile_picture and profile.profile_picture.name != settings.DEFAULT_PROFILE_PICTURE_PATH:
             all_profile_images_urls.append(profile.profile_picture.url)
-        
-        # Add all additional images (from the gallery model)
+
         for img in ProfileImage.objects.filter(user_profile=profile).order_by('order', 'pk'):
-            if img.image: # Only add if image file exists
+            if img.image:
                 all_profile_images_urls.append(img.image.url)
 
-        # If no images found (or only default), ensure default avatar is explicitly added to the list
         if not all_profile_images_urls:
             all_profile_images_urls.append(settings.STATIC_URL + settings.DEFAULT_PROFILE_PICTURE_PATH)
 
-
-        # IMPORTANT: Prepare a flat dictionary for the template to directly consume
         profiles_data.append({
             'username': profile.username,
-            'first_name': profile.first_name, 
-            'bio': profile.bio, 
+            'first_name': profile.first_name,
+            'bio': profile.bio,
             'gender': profile.gender,
-            'gender_display': profile.get_gender_display(), 
-            'seeking': profile.seeking, 
-            'seeking_display': profile.get_seeking_display(), 
-            'location': profile.location, 
-            'full_name': profile.get_full_name, 
-            'interests': profile.interests if hasattr(profile, 'interests') else [],
-            'age': profile.get_age, 
+            'gender_display': profile.get_gender_display(),
+            'seeking': profile.seeking,
+            'seeking_display': profile.get_seeking_display(),
+            'location': profile.location,
+            'full_name': profile.get_full_name,
+            'age': profile.get_age,
             'main_profile_picture': profile.profile_picture.url if profile.profile_picture else settings.STATIC_URL + settings.DEFAULT_PROFILE_PICTURE_PATH,
-            'profile_pictures': all_profile_images_urls, # Passed as a list for image cycler
-            'is_premium': profile.is_premium, 
+            'profile_pictures': all_profile_images_urls,
+            'is_premium': profile.is_premium,
             'last_login': profile.last_login.isoformat() if profile.last_login else None,
-            'profile_picture_name': profile.profile_picture.name if profile.profile_picture else ''
+            'profile_picture_name': profile.profile_picture.name if profile.profile_picture else '',
+            'looking_for_display': profile.get_looking_for_display,
         })
-
+    
     context = {
-        'profiles_json': json.dumps(profiles_data)
+        'profiles_data': profiles_data,
+        'user_profile': current_user,
+        'min_age': min_age,
+        'max_age': max_age,
+        'location_filter': location_filter,
+        'LOOKING_FOR_CHOICES': LOOKING_FOR_CHOICES,
     }
     return render(request, 'accounts/swipe_profiles.html', context)
 
@@ -693,7 +706,7 @@ def swipe_profiles_view(request):
 @login_required
 def subscription_plans_view(request):
     """Displays available subscription plans."""
-    plans = SubscriptionPlan.objects.all().order_by('price')
+    plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price')
     context = {
         'plans': plans
     }
@@ -701,172 +714,216 @@ def subscription_plans_view(request):
 
 
 @login_required
-def initiate_payment_view(request, plan_id): # This view now expects plan_id in the URL
-    """Initiates payment with Paystack for a selected subscription plan."""
-    print(f"--- initiate_payment_view called for plan_id: {plan_id} ---") # DEBUG
-    plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+@transaction.atomic
+def initiate_payment_view(request, plan_id):
+    """
+    Initiates a payment with Paystack for a chosen subscription plan.
+    """
     user = request.user
-
-    # Generate a unique reference for the transaction
-    # It's good practice to ensure this is truly unique, e.g., using UUID
-    ref = f'LOVENY-{user.id}-{plan.id}-{timezone.now().timestamp()}'
-
-    # Create a pending payment transaction record in your database
-    transaction_obj = PaymentTransaction.objects.create(
+    
+    # Check if the user already has an active subscription
+    active_subscription = UserSubscription.objects.filter(
         user=user,
-        plan=plan,
-        amount=plan.price,
-        reference=ref,
+        is_active=True,
+        end_date__gt=timezone.now()
+    ).first()
+
+    if active_subscription:
+        messages.info(request, "You already have an active subscription.")
+        return redirect('accounts:profile') # Or wherever appropriate
+
+    try:
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+    except Exception as e:
+        messages.error(request, f"Subscription plan not found: {e}")
+        return redirect('accounts:subscription_plans') # Redirect back to plan selection
+
+    # Paystack amount is in Kobo (NGN smallest unit)
+    amount_kobo = int(plan.price * 100)
+    
+    # Generate a unique reference for the transaction
+    transaction_ref = f"{user.username}-{uuid.uuid4().hex[:10]}"
+
+    # Store transaction details in your database *before* calling Paystack
+    payment_transaction = PaymentTransaction.objects.create(
+        user=user,
+        plan=plan, # Corrected field name from subscription_plan to plan
+        amount=plan.price, # Store actual amount in Naira
+        reference=transaction_ref,
         status='pending'
     )
-    print(f"DEBUG: Created pending transaction: {transaction_obj.reference}")
 
-    # Prepare Paystack API request
-    # Paystack amount is in kobo (smallest currency unit), so multiply by 100
-    amount_kobo = int(plan.price * 100) 
-    callback_url = request.build_absolute_uri(reverse_lazy('accounts:paystack_callback'))
-    
     headers = {
         'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
     }
+    
+    # Ensure PAYSTACK_CALLBACK_URL is set in settings.py for production
+    callback_url = getattr(settings, 'PAYSTACK_CALLBACK_URL', request.build_absolute_uri(reverse_lazy('accounts:paystack_callback')))
+
+
     payload = {
         'email': user.email,
-        'amount': amount_kobo,
-        'reference': ref,
+        'amount': amount_kobo, # Amount in kobo
+        'currency': 'NGN', # Or your desired currency
+        'reference': transaction_ref,
         'callback_url': callback_url,
         'metadata': {
-            'plan_id': plan.id,
-            'user_id': user.id,
             'custom_fields': [
-                {'display_name': "Plan Name", "variable_name": "plan_name", "value": plan.name},
-                {'display_name': "User Username", "variable_name": "user_username", "value": user.username},
+                {
+                    'display_name': 'User ID',
+                    'variable_name': 'user_id',
+                    'value': str(user.id)
+                },
+                {
+                    'display_name': 'Plan ID',
+                    'variable_name': 'plan_id',
+                    'value': str(plan.id)
+                }
             ]
         }
     }
-    
-    PAYSTACK_INITIATE_URL = "https://api.paystack.co/transaction/initialize"
-    
-    print(f"DEBUG: Sending initiation request to Paystack for ref: {ref}")
-    try:
-        response = requests.post(PAYSTACK_INITIATE_URL, headers=headers, data=json.dumps(payload))
-        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-        paystack_data = response.json()
-        print(f"DEBUG: Paystack initiation response: {paystack_data}")
 
-        if paystack_data['status'] and paystack_data['data']['authorization_url']:
-            # Update transaction with gateway response (optional, but good for debugging)
-            transaction_obj.gateway_response = paystack_data
-            transaction_obj.save(update_fields=['gateway_response'])
-            return redirect(paystack_data['data']['authorization_url'])
+    # If Paystack plan code is available, include it for recurring subscriptions
+    if plan.paystack_plan_code:
+        payload['plan'] = plan.paystack_plan_code
+
+    try:
+        response = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, json=payload)
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+        paystack_data = response.json()
+
+        if paystack_data.get('status'):
+            authorization_url = paystack_data['data']['authorization_url']
+            # Update the transaction with Paystack's authorization URL if needed, or store full response
+            payment_transaction.gateway_response = paystack_data['data'] # Store relevant part of response
+            payment_transaction.save()
+            return redirect(authorization_url)
         else:
-            print(f"ERROR: Paystack initiation failed: {paystack_data.get('message', 'No message from Paystack')}")
-            messages.error(request, f"Payment initiation failed: {paystack_data.get('message', 'Please try again.')}")
-            transaction_obj.status = 'failed'
-            transaction_obj.gateway_response = paystack_data
-            transaction_obj.save(update_fields=['status', 'gateway_response'])
+            error_message = paystack_data.get('message', 'Unknown error from Paystack.')
+            messages.error(request, f"Payment initiation failed: {error_message}")
+            payment_transaction.status = 'failed' # Mark transaction as failed
+            payment_transaction.gateway_response = paystack_data['data']
+            payment_transaction.save()
             return redirect('accounts:subscription_plans')
 
     except requests.exceptions.RequestException as e:
-        print(f"ERROR: Network or Paystack API error during initiation: {e}")
-        messages.error(request, f"Payment initiation failed due to a network error: {e}")
-        transaction_obj.status = 'failed'
-        transaction_obj.gateway_response = {'error': str(e)}
-        transaction_obj.save(update_fields=['status', 'gateway_response'])
+        messages.error(request, f"Network or API error while initiating payment: {e}")
+        payment_transaction.status = 'failed'
+        payment_transaction.gateway_response = {'error': str(e)}
+        payment_transaction.save()
         return redirect('accounts:subscription_plans')
     except Exception as e:
-        print(f"CRITICAL ERROR: Unexpected error in initiate_payment_view: {e}")
         messages.error(request, f"An unexpected error occurred during payment initiation: {e}")
-        transaction_obj.status = 'failed'
-        transaction_obj.gateway_response = {'error': str(e)}
-        transaction_obj.save(update_fields=['status', 'gateway_response'])
+        payment_transaction.status = 'failed'
+        payment_transaction.gateway_response = {'error': str(e)}
+        payment_transaction.save()
         return redirect('accounts:subscription_plans')
 
+
+@login_required
 @transaction.atomic
 def paystack_callback_view(request):
-    """Handles the callback from Paystack after a transaction."""
-    print("--- paystack_callback_view called ---") # DEBUG
-    reference = request.GET.get('reference')
+    """
+    Handles the callback from Paystack after a payment attempt.
+    Verifies the transaction and updates user's subscription.
+    """
+    reference = request.GET.get('trxref') or request.GET.get('reference')
+    user = request.user
+
     if not reference:
-        messages.error(request, "Payment verification failed: No transaction reference provided.")
+        messages.error(request, "Payment reference missing.")
         return redirect('accounts:subscription_plans')
+
+    # Get the transaction from your database
+    try:
+        payment_transaction = PaymentTransaction.objects.get(user=user, reference=reference)
+    except PaymentTransaction.DoesNotExist:
+        messages.error(request, "Payment record not found.")
+        return redirect('accounts:subscription_plans') # Or a more appropriate error page
+
+    # Prevent re-processing already successful transactions
+    if payment_transaction.status == 'success':
+        messages.success(request, "Your subscription is already active!")
+        return redirect('accounts:profile') # Already handled, redirect to profile
+
+    headers = {
+        'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+    }
 
     try:
-        # Verify the transaction with Paystack
-        headers = {
-            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-        }
-        PAYSTACK_VERIFY_URL = f"https://api.paystack.co/transaction/verify/{reference}"
-        print(f"DEBUG: Verifying transaction with Paystack for ref: {reference}")
-        response = requests.get(PAYSTACK_VERIFY_URL, headers=headers)
-        response.raise_for_status()
+        response = requests.get(f'https://api.paystack.co/transaction/verify/{reference}', headers=headers)
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
         paystack_data = response.json()
-        print(f"DEBUG: Paystack verification response: {paystack_data}")
 
-        if paystack_data['status'] and paystack_data['data']['status'] == 'success':
-            # Find the local transaction record
-            transaction_obj = get_object_or_404(PaymentTransaction, reference=reference)
-            
-            if transaction_obj.status == 'success':
-                messages.info(request, "This payment has already been processed.")
-                return redirect('accounts:profile')
+        if paystack_data.get('status') and paystack_data['data']['status'] == 'success':
+            # Paystack verification successful
+            payment_transaction.status = 'success'
+            payment_transaction.gateway_response = paystack_data['data'] # Store full response data
+            payment_transaction.save()
 
-            # Mark transaction as successful
-            transaction_obj.status = 'success'
-            transaction_obj.gateway_response = paystack_data
-            transaction_obj.save(update_fields=['status', 'gateway_response'])
-            print(f"DEBUG: Transaction {reference} marked as success locally.")
+            # Extract necessary details from Paystack response
+            authorization_code = paystack_data['data']['authorization']['authorization_code']
+            paystack_subscription_code = paystack_data['data'].get('subscription_code') # Might be null for one-off payments
+            paystack_email_token = paystack_data['data']['customer']['customer_code']
 
-            # Activate or update user's subscription
-            user = transaction_obj.user
-            plan = transaction_obj.plan
+
+            # Grant the user the subscription
+            # Check if user has an existing subscription record
+            user_subscription, created = UserSubscription.objects.get_or_create(
+                user=user,
+                defaults={
+                    'plan': payment_transaction.plan,
+                    'is_active': True,
+                    'paystack_authorization_code': authorization_code,
+                    'paystack_subscription_code': paystack_subscription_code,
+                    'paystack_email_token': paystack_email_token,
+                    'start_date': timezone.now()
+                }
+            )
             
-            user_subscription, created = UserSubscription.objects.get_or_create(user=user)
-            
-            # If the user already has an active subscription, extend it
-            if user_subscription.is_active and user_subscription.end_date and user_subscription.end_date > timezone.now():
-                user_subscription.end_date += timedelta(days=plan.duration_days)
-                messages.success(request, f"Your {plan.name} subscription has been extended! Expires: {user_subscription.end_date.strftime('%Y-%m-%d')}")
-                print(f"DEBUG: User {user.username} subscription extended.")
-            else:
-                # New subscription or old one expired/inactive
-                user_subscription.plan = plan
-                user_subscription.start_date = timezone.now()
-                user_subscription.end_date = timezone.now() + timedelta(days=plan.duration_days)
+            if not created:
+                # If subscription already exists, update it
+                user_subscription.plan = payment_transaction.plan
                 user_subscription.is_active = True
-                messages.success(request, f"Congratulations! Your {plan.name} subscription is now active! Expires: {user_subscription.end_date.strftime('%Y-%m-%d')}")
-                print(f"DEBUG: User {user.username} new subscription activated.")
+                user_subscription.paystack_authorization_code = authorization_code
+                user_subscription.paystack_subscription_code = paystack_subscription_code
+                user_subscription.paystack_email_token = paystack_email_token
+
+                # Extend end_date if active, otherwise set from now
+                if user_subscription.end_date and user_subscription.end_date > timezone.now():
+                    user_subscription.end_date += timedelta(days=user_subscription.plan.duration_days)
+                else:
+                    user_subscription.start_date = timezone.now()
+                    user_subscription.end_date = user_subscription.start_date + timedelta(days=user_subscription.plan.duration_days)
+                user_subscription.save()
             
-            user_subscription.save()
+            user.is_premium = True # Set user as premium
+            user.premium_expiry_date = user_subscription.end_date # Sync with subscription end date
+            user.save()
 
-            # Set user to premium
-            user.is_premium = True
-            user.premium_expiry_date = user_subscription.end_date
-            user.save(update_fields=['is_premium', 'premium_expiry_date'])
-            print(f"DEBUG: User {user.username} set to premium until {user.premium_expiry_date}.")
-
-            return redirect('accounts:profile') # Redirect to profile page on success
+            messages.success(request, "Payment successful! Your premium subscription is now active.")
+            return redirect('accounts:profile') # Redirect to user's profile or a success page
 
         else:
-            # Payment not successful or verification failed
-            print(f"ERROR: Paystack verification failed or status not 'success' for ref {reference}. Details: {paystack_data}")
-            transaction_obj = get_object_or_404(PaymentTransaction, reference=reference)
-            transaction_obj.status = 'failed'
-            transaction_obj.gateway_response = paystack_data
-            transaction_obj.save(update_fields=['status', 'gateway_response'])
-            messages.error(request, f"Payment verification failed: {paystack_data['data'].get('gateway_response', 'Unknown error.')}")
+            # Paystack verification failed or status is not 'success'
+            error_message = paystack_data.get('data', {}).get('message', 'Payment verification failed with Paystack.')
+            messages.error(request, f"Payment failed: {error_message}")
+            payment_transaction.status = 'failed'
+            payment_transaction.gateway_response = paystack_data['data']
+            payment_transaction.save()
             return redirect('accounts:subscription_plans')
 
-    except PaymentTransaction.DoesNotExist:
-        messages.error(request, "Payment verification failed: Transaction record not found.")
-        print(f"ERROR: Local transaction record not found for reference: {reference}")
-        return redirect('accounts:subscription_plans')
     except requests.exceptions.RequestException as e:
-        messages.error(request, f"Payment verification failed due to a network error: {e}")
-        print(f"ERROR: Network or Paystack API error during verification: {e}")
+        messages.error(request, f"Network or API error during payment verification: {e}")
+        payment_transaction.status = 'failed'
+        payment_transaction.gateway_response = {'error': str(e)}
+        payment_transaction.save()
         return redirect('accounts:subscription_plans')
     except Exception as e:
         messages.error(request, f"An unexpected error occurred during payment verification: {e}")
-        print(f"CRITICAL ERROR: Unexpected error in paystack_callback_view: {e}")
+        payment_transaction.status = 'failed'
+        payment_transaction.gateway_response = {'error': str(e)}
+        payment_transaction.save()
         return redirect('accounts:subscription_plans')
 
