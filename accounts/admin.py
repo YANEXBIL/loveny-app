@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import UserProfile, ProfileImage, UserSubscription, PaymentTransaction # Import your models
+from .models import UserProfile, ProfileImage, UserSubscription, PaymentTransaction, SubscriptionPlan # Import all your models, including SubscriptionPlan
 
 # Custom User Admin
 class CustomUserAdmin(UserAdmin):
@@ -42,8 +42,8 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('username', 'email', 'password', 'password2', 'first_name', 'last_name', 
-                       'bio', 'gender', 'date_of_birth', 'location', 'phone_number', 
-                       'looking_for', 'seeking', 'is_premium', 'premium_expiry_date'), # Changed 'user_type' to 'looking_for'
+                        'bio', 'gender', 'date_of_birth', 'location', 'phone_number', 
+                        'looking_for', 'seeking', 'is_premium', 'premium_expiry_date'), # Changed 'user_type' to 'looking_for'
         }),
     )
 
@@ -61,11 +61,23 @@ class ProfileImageAdmin(admin.ModelAdmin):
     raw_id_fields = ('user_profile',) # Use raw_id_fields for ForeignKey to show ID, good for large datasets
     list_editable = ('is_main', 'order') # Allow editing these directly in the list view
 
+@admin.register(SubscriptionPlan)
+class SubscriptionPlanAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price', 'duration_days', 'is_active', 'paystack_plan_code') # Added paystack_plan_code
+    list_filter = ('is_active',)
+    search_fields = ('name', 'paystack_plan_code') # Added paystack_plan_code
+
 @admin.register(UserSubscription)
 class UserSubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan', 'start_date', 'end_date', 'is_active')
+    list_display = (
+        'user', 'plan', 'start_date', 'end_date', 'is_active', 
+        'paystack_authorization_code', 'paystack_subscription_code', 'paystack_email_token' # Added Paystack fields
+    )
     list_filter = ('is_active', 'plan')
-    search_fields = ('user__username', 'plan__name')
+    search_fields = (
+        'user__username', 'plan__name', 'paystack_authorization_code', 
+        'paystack_subscription_code', 'paystack_email_token' # Added Paystack fields
+    )
     raw_id_fields = ('user', 'plan')
 
 @admin.register(PaymentTransaction)
@@ -75,3 +87,4 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'plan__name', 'reference')
     raw_id_fields = ('user', 'plan')
     readonly_fields = ('created_at', 'updated_at', 'gateway_response')
+

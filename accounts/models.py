@@ -3,12 +3,14 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 import os
-from datetime import date
+from datetime import date, timedelta
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings # Make sure settings is imported for MEDIA_ROOT reference
 from uuid import uuid4 # For unique filenames
+from django.utils import timezone # Import timezone for handling datetime objects
+
 
 # --- Custom Validators ---
 def validate_image_file_size(value):
@@ -54,8 +56,6 @@ SEEKING_CHOICES = [
     ('A', 'Anyone'),
 ]
 
-# RENAMED: USER_TYPE_CHOICES to LOOKING_FOR_CHOICES
-# ADDED: 'SEXCALL'
 LOOKING_FOR_CHOICES = [
     ('DATING', 'Dating'),
     ('HOOKUP', 'Hookup'),
@@ -127,8 +127,6 @@ class UserProfile(AbstractUser):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     
-    # CORRECTED: Changed default to None so it doesn't store a media path for a static file.
-    # The frontend will display settings.STATIC_URL + settings.DEFAULT_PROFILE_PICTURE_PATH if this is None.
     profile_picture = models.ImageField(
         upload_to=user_image_directory_path, 
         blank=True,
@@ -158,7 +156,6 @@ class UserProfile(AbstractUser):
     )
 
     # Dating/Hookup/Sugar specific fields
-    # RENAMED: user_type field to use LOOKING_FOR_CHOICES
     looking_for = models.CharField(
         max_length=20,
         choices=LOOKING_FOR_CHOICES, # Changed from USER_TYPE_CHOICES
@@ -212,7 +209,7 @@ class UserProfile(AbstractUser):
         if self.date_of_birth:
             today = date.today()
             age = today.year - self.date_of_birth.year - \
-                  ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+                    ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
             return age
         return None
 
@@ -258,9 +255,6 @@ class ProfileImage(models.Model):
         ordering = ['order', '-uploaded_at'] 
         verbose_name = "Profile Image"
         verbose_name_plural = "Profile Images"
-        # Removed unique_together = ('user_profile', 'is_main')
-        # This constraint is handled in the save method for more flexible logic
-        # as multiple images can technically be 'main' before save updates them.
 
     def save(self, *args, **kwargs):
         # If this image is set as main, ensure all others for this user are not main
@@ -409,11 +403,26 @@ class Like(models.Model):
 
 # Models for Subscription and Payments (Updated to reflect UserProfile as the User model)
 class SubscriptionPlan(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    PLAN_CHOICES = [ # Added choices for plan names
+        ('BASIC', 'Basic Plan'),
+        ('PREMIUM', 'Premium Plan'),
+        ('ELITE', 'Elite Plan'),
+    ]
+    name = models.CharField(max_length=100, unique=True, choices=PLAN_CHOICES) # Added choices
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_days = models.IntegerField(help_text="Duration of the plan in days")
     description = models.TextField(blank=True, null=True)
     features = models.JSONField(default=list, blank=True, help_text="List of features included in this plan (e.g., ['Ad-free experience', 'Send unlimited messages'])")
+    
+    # --- NEW FIELD FOR PAYSTACK INTEGRATION ---
+    paystack_plan_code = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Paystack Plan Code for recurring billing. Obtain this from your Paystack dashboard."
+    )
+    # --- END NEW FIELD ---
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -428,9 +437,25 @@ class SubscriptionPlan(models.Model):
 class UserSubscription(models.Model):
     user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='subscription') 
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True)
-    start_date = models.DateTimeField(auto_now_add=True)
+    start_date = models.DateTimeField(default=timezone.now) # Changed to default to timezone.now
     end_date = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=False)
+    
+    # --- NEW FIELDS FOR PAYSTACK INTEGRATION ---
+    paystack_authorization_code = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Paystack authorization code for recurring charges."
+    )
+    paystack_subscription_code = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Paystack subscription code for managing the subscription."
+    )
+    paystack_email_token = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Paystack email token for customer identification."
+    )
+    # --- END NEW FIELDS ---
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -441,10 +466,35 @@ class UserSubscription(models.Model):
     def __str__(self):
         return f"{self.user.username}'s subscription to {self.plan.name if self.plan else 'N/A'}"
 
-    def save(self, *args, **kwargs):
-        if self.plan and not self.end_date:
-            from datetime import timedelta
+    # --- NEW METHODS FOR SUBSCRIPTION MANAGEMENT ---
+    def activate(self, authorization_code=None, subscription_code=None, email_token=None):
+        self.is_active = True
+        self.start_date = timezone.now()
+        # Calculate end_date based on plan duration
+        if self.plan and self.plan.duration_days:
             self.end_date = self.start_date + timedelta(days=self.plan.duration_days)
+        
+        self.paystack_authorization_code = authorization_code
+        self.paystack_subscription_code = subscription_code
+        self.paystack_email_token = email_token
+        self.save()
+
+    def deactivate(self):
+        self.is_active = False
+        self.save()
+
+    @property
+    def is_expired(self):
+        """
+        Checks if the subscription has expired.
+        A subscription is expired if end_date is in the past and it's not active.
+        """
+        return self.end_date and self.end_date < timezone.now() and not self.is_active
+    # --- END NEW METHODS ---
+
+    def save(self, *args, **kwargs):
+        # The logic to set end_date is moved to the activate method
+        # This ensures end_date is set only when the subscription is activated.
         super().save(*args, **kwargs)
 
 class PaymentTransaction(models.Model):
