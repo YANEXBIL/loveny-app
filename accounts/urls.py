@@ -18,7 +18,7 @@ urlpatterns = [
     path('browse/', views.browse_profiles_view, name='browse_profiles'),
     # Changed path parameter from uuid:user_id to str:username to match views.py
     path('profile/<str:username>/', views.view_other_profile, name='view_user_profile'), 
-    path('matches/', views.matches_view, name='matches'), # View for displaying user matches
+    path('matches/', views.matches_view, name='matches_view'), # Make sure 'name' is defined
     path('like/<str:username>/', views.like_view, name='like_view'), # Added like_view with username parameter
     path('swipe/', views.swipe_profiles_view, name='swipe_profiles'), # Added swipe view
 
