@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8">
+    {# Added data-last-login to the main profile container for JavaScript to access #}
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8"
+         data-username="{{ user_profile.username }}" data-last-login="{{ user_profile.last_login|isoformat }}"> {# Added data-last-login #}
+        
         <div class="flex-shrink-0 relative"> {# Added relative for badge positioning #}
             {% if user_profile.profile_picture %}
                 {# Display user's profile picture if available #}
@@ -22,6 +25,13 @@
                     VIP
                 </span>
             {% endif %}
+
+            {# Online/Last Seen Indicator - NEW #}
+            {# Positioned relative to the profile picture container #}
+            <div class="last-seen-indicator absolute top-3 right-3 flex items-center bg-gray-800 bg-opacity-75 text-white text-xs font-semibold px-2 py-1 rounded-full z-10">
+                <span class="status-dot w-2 h-2 rounded-full mr-1"></span>
+                <span class="status-text"></span>
+            </div>
         </div>
 
         <div class="flex-grow text-center md:text-left">
@@ -62,3 +72,56 @@
     </div>
 </div>
 {% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Function to calculate and display online/last seen status
+    function updateOnlineStatus(cardElement) {
+        const lastLoginIso = cardElement.dataset.lastLogin;
+        const statusDot = cardElement.querySelector('.status-dot');
+        const statusText = cardElement.querySelector('.status-text');
+
+        if (!lastLoginIso || lastLoginIso === 'None') {
+            statusDot.classList.remove('bg-green-500', 'bg-gray-400');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Never online';
+            return;
+        }
+
+        const lastLoginDate = new Date(lastLoginIso);
+        const now = new Date();
+        const diffMinutes = Math.round((now - lastLoginDate) / (1000 * 60)); // Difference in minutes
+
+        if (diffMinutes < 10) { // Considered online if logged in within last 10 minutes
+            statusDot.classList.remove('bg-gray-400');
+            statusDot.classList.add('bg-green-500');
+            statusText.textContent = 'Online now';
+        } else if (diffMinutes < 60) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffMinutes} min ago`;
+        } else if (diffMinutes < (24 * 60)) {
+            const diffHours = Math.round(diffMinutes / 60);
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = `${diffHours} hr ago`;
+        } else if (diffMinutes < (48 * 60)) {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = 'Yesterday';
+        } else {
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-gray-400');
+            statusText.textContent = lastLoginDate.toLocaleDateString(); // Fallback to date
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Find the main profile card container and update its online status
+        const profileCard = document.querySelector('.flex-col.md\\:flex-row'); // Targeting the main div with flex-col
+        if (profileCard) {
+            updateOnlineStatus(profileCard);
+        }
+    });
+</script>
+{% endblock extra_js %}
