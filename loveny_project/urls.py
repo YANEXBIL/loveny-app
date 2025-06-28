@@ -10,12 +10,14 @@ urlpatterns = [
     path('', RedirectView.as_view(pattern_name='accounts:homepage', permanent=False), name='home'),
     path('admin/', admin.site.urls),
     # Include accounts.urls under the 'accounts/' prefix
-    path('accounts/', include('accounts.urls', namespace='accounts')), 
+    # Removed redundant namespace='accounts' as app_name is already set in accounts/urls.py
+    path('accounts/', include('accounts.urls')), 
 ]
 
 # Serve media files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    # Ensure STATIC_ROOT is used for static files, if collectstatic has been run
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-
+    # In DEBUG mode, Django's staticfiles app serves static files automatically
+    # from STATICFILES_DIRS and app 'static' folders.
+    # Serving from STATIC_ROOT is typically for production deployments after collectstatic.
+    # So, removed: urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

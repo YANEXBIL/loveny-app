@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {# Assuming you have a base.html for common layout #}
+
+{% block title %}Confirm Account Deletion{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title text-center text-danger mb-4">Delete Your Account</h3>
+                    
+                    <p class="text-center">
+                        Are you absolutely sure you want to delete your account?
+                        <br>
+                        <strong>This action cannot be undone. All your data will be permanently lost.</strong>
+                    </p>
+
+                    {# THIS IS THE CRUCIAL PART: The <form> tag #}
+                    <form method="post" action="{% url 'accounts:account_delete' %}" class="text-center mt-4">
+                        {% csrf_token %}
+                        {# The Delete Button #}
+                        <button type="submit" class="btn btn-danger btn-lg me-3">
+                            Yes, Delete My Account
+                        </button>
+                        {# The Cancel Link/Button #}
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-secondary btn-lg">
+                            No, Go Back to Profile
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

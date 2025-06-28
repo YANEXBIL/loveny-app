@@ -15,3 +15,15 @@ db.sqlite3
 /staticfiles/ # Collected static files (these are generated)
 .vscode/ # VS Code settings, if you use it
 *.log # Log files
+# Byte-code files
+*.pyc
+__pycache__/
+
+# Environment variables
+.env
+
+# Django-specific files
+# ... other typical Django ignores (e.g., media, staticfiles, db.sqlite3)
+db.sqlite3
+/media/
+/staticfiles/

@@ -10,29 +10,29 @@ urlpatterns = [
     # Basic User Authentication Views
     path('signup/', SignUpView.as_view(), name='signup'), # Using explicitly imported SignUpView
     path('login/', CustomLoginView.as_view(), name='login'), # Using explicitly imported CustomLoginView
-    path('logout/', CustomLogoutView.as_view(), name='logout'), # Fixed typo: as_as_view() to as_view()
+    path('logout/', CustomLogoutView.as_view(), name='logout'), 
     
     # User Profile Views
     path('profile/edit/', views.profile_edit_view, name='profile_edit'),
     path('profile/', views.profile_view, name='profile'), # General user profile view
     path('browse/', views.browse_profiles_view, name='browse_profiles'),
-    # Changed path parameter from uuid:user_id to str:username to match views.py
-    path('profile/<str:username>/', views.view_other_profile, name='view_user_profile'), 
-    path('matches/', views.matches_view, name='matches_view'), # Make sure 'name' is defined
-    path('like/<str:username>/', views.like_view, name='like_view'), # Added like_view with username parameter
-    path('swipe/', views.swipe_profiles_view, name='swipe_profiles'), # Added swipe view
+    # CORRECTED: Mapped to view_user_profile for comprehensive profile display
+    path('profile/<str:username>/', views.view_user_profile, name='view_user_profile'), 
+    path('matches/', views.matches_view, name='matches_view'), 
+    path('like/<str:username>/', views.like_view, name='like_view'), 
+    path('swipe/', views.swipe_profiles_view, name='swipe_profiles'), 
 
     # Subscription Plans View
-    path('subscription-plans/', views.subscription_plans_view, name='subscription_plans'),
+    # CORRECTED: points to choose_plan_view in views.py
+    path('subscription-plans/', views.choose_plan_view, name='subscription_plans'), 
 
     # Payment Views
-    # Added plan_id parameter to match initiate_payment_view in views.py
     path('initiate-payment/<int:plan_id>/', views.initiate_payment_view, name='initiate_payment'), 
-    # CORRECTED: Changed path and view to reflect Paystack callback mechanism
-    path('paystack-callback/', views.paystack_callback_view, name='paystack_callback'),
+    # CORRECTED: points to verify_payment_view in views.py
+    path('paystack-callback/', views.verify_payment_view, name='paystack_callback'), 
 
-    # Homepage View
-    path('', views.homepage_view, name='homepage'), # Root path for accounts app
+    # Homepage View (This is the root path for the accounts app, not necessarily the project root)
+    path('', views.homepage_view, name='homepage'), 
 
     # Password Reset Views
     # Step 1: Request password reset link
@@ -68,5 +68,8 @@ urlpatterns = [
          name='password_reset_complete'),
 
     # AJAX URL for saving profile edits and images
-    path('ajax/profile/save/', views.ajax_profile_save, name='ajax_profile_save'), # Added this path
+    path('ajax/profile/save/', views.ajax_profile_save, name='ajax_profile_save'),
+
+    # Account Deletion URL
+    path('account/delete/', views.account_delete, name='account_delete'), # Added this URL
 ]

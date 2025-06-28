@@ -4,13 +4,11 @@
 
 {% block content %}
 <div class="flex justify-center items-start min-h-[calc(100vh-200px)] px-4">
-    {# Added data-last-login to the main profile container for JavaScript to access #}
     <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl flex flex-col md:flex-row items-center md:items-start gap-8"
-         data-username="{{ user_profile.username }}" data-last-login="{{ user_profile.last_login|isoformat }}"> {# Added data-last-login #}
+         data-username="{{ user_profile.username }}" data-last-login="{{ user_profile.last_login|isoformat }}">
         
-        <div class="flex-shrink-0 relative"> {# Added relative for badge positioning #}
+        <div class="flex-shrink-0 relative">
             {% if user_profile.profile_picture %}
-                {# Display user's profile picture if available #}
                 <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.username }}'s Profile Picture"
                      class="w-48 h-48 object-cover rounded-full border-4 border-pink-400 shadow-md">
             {% else %}
@@ -20,14 +18,11 @@
             {% endif %}
 
             {% if user_profile.is_premium %}
-                {# VIP Badge #}
                 <span class="absolute bottom-0 right-0 -mr-2 -mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
                     VIP
                 </span>
             {% endif %}
 
-            {# Online/Last Seen Indicator - NEW #}
-            {# Positioned relative to the profile picture container #}
             <div class="last-seen-indicator absolute top-3 right-3 flex items-center bg-gray-800 bg-opacity-75 text-white text-xs font-semibold px-2 py-1 rounded-full z-10">
                 <span class="status-dot w-2 h-2 rounded-full mr-1"></span>
                 <span class="status-text"></span>
@@ -67,6 +62,8 @@
             <div class="mt-6 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
                 <a href="{% url 'accounts:profile_edit' %}" class="btn btn-primary">Edit Profile</a>
                 <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-secondary">Browse Profiles</a>
+                {# Added Delete Account Button below #}
+                <a href="{% url 'accounts:account_delete' %}" class="btn btn-danger">Delete Account</a> 
             </div>
         </div>
     </div>
@@ -117,8 +114,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Find the main profile card container and update its online status
-        const profileCard = document.querySelector('.flex-col.md\\:flex-row'); // Targeting the main div with flex-col
+        const profileCard = document.querySelector('.flex-col.md\\:flex-row');
         if (profileCard) {
             updateOnlineStatus(profileCard);
         }
