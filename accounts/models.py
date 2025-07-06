@@ -1,3 +1,5 @@
+# accounts/models.py
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db.models.signals import post_delete, pre_save
@@ -5,10 +7,13 @@ from django.dispatch import receiver
 import os
 from datetime import date, timedelta
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator # Keep if still used, otherwise can remove
+from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-from django.conf import settings # Make sure settings is imported for MEDIA_ROOT reference
-from uuid import uuid4 # For unique filenames
+from django.conf import settings
+from uuid import uuid4
+from django.utils import timezone
+from django.db.models import TextChoices # Added explicitly for clarity if you decide to use it later
+
 
 # --- Custom Validators ---
 def validate_image_file_size(value):
@@ -35,12 +40,12 @@ def user_image_directory_path(instance, filename):
         # We use instance.id directly because UserProfile IS now the User model
         # For the main profile_picture field on UserProfile
         return os.path.join('profile_pictures', f'user_{instance.id}', filename)
-        
+
     elif isinstance(instance, ProfileImage):
         # For ProfileImage instances (additional gallery images)
         # Ensure user_profile is available for ProfileImage instances
         return os.path.join('profile_pictures', f'user_{instance.user_profile.id}', 'gallery', filename)
-        
+
     return os.path.join('uploads', filename) # Fallback just in case, though should not be hit
 
 
@@ -128,18 +133,16 @@ class UserProfile(AbstractUser):
     bio = models.TextField(max_length=500, blank=True, null=True, help_text="Tell us about yourself.")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
-    
-    # CORRECTED: Changed default to None so it doesn't store a media path for a static file.
-    # The frontend will display settings.STATIC_URL + settings.DEFAULT_PROFILE_PICTURE_PATH if this is None.
+
     profile_picture = models.ImageField(
-        upload_to=user_image_directory_path, 
+        upload_to=user_image_directory_path,
         blank=True,
         null=True,
         default=None, # CRUCIAL CHANGE: No default media path.
-        validators=[validate_image_file_size] 
+        validators=[validate_image_file_size]
     )
     location = models.CharField(max_length=100, blank=True, null=True)
-    
+
     # Phone number for WhatsApp contact
     phone_number = models.CharField(
         max_length=20,
@@ -151,18 +154,18 @@ class UserProfile(AbstractUser):
     # This field links to a ProfileImage instance if it's currently used as the main profile picture.
     # It ensures the 'profile_picture' field (ImageField) is kept in sync with one of the 'ProfileImage' instances.
     main_additional_image = models.OneToOneField(
-        'ProfileImage', 
-        on_delete=models.SET_NULL, 
+        'ProfileImage',
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='is_main_profile_picture_for', 
+        related_name='is_main_profile_picture_for',
         help_text="Links to a ProfileImage instance if it's currently used as the main profile picture. (This field helps manage which gallery image is the main one visually, syncing with 'profile_picture')."
     )
 
     # Dating/Hookup/Sugar specific fields
     looking_for = models.CharField(
         max_length=20,
-        choices=LOOKING_FOR_CHOICES, 
+        choices=LOOKING_FOR_CHOICES,
         default='DATING',
         help_text="Are you looking for dating, hookups, or are you a sugar daddy/mummy?"
     )
@@ -182,12 +185,12 @@ class UserProfile(AbstractUser):
     ethnicity = models.CharField(max_length=50, choices=ETHNICITY_CHOICES, blank=True, null=True)
     religion = models.CharField(max_length=50, choices=RELIGION_CHOICES, blank=True, null=True)
     marital_status = models.CharField(max_length=30, choices=MARITAL_STATUS_CHOICES, blank=True, null=True)
-    has_children = models.BooleanField(null=True, blank=True) 
+    has_children = models.BooleanField(null=True, blank=True)
     education = models.CharField(max_length=50, choices=EDUCATION_CHOICES, blank=True, null=True)
     occupation = models.CharField(max_length=100, choices=OCCUPATION_CHOICES, blank=True, null=True)
     drinking_habits = models.CharField(max_length=20, choices=DRINKING_CHOICES, blank=True, null=True)
     smoking_habits = models.CharField(max_length=20, choices=SMOKING_CHOICES, blank=True, null=True)
-    
+
     # Custom manager for UserProfile
     objects = UserProfileManager()
 
@@ -247,7 +250,7 @@ class ProfileImage(models.Model):
         help_text="The user profile this image belongs to."
     )
     image = models.ImageField(
-        upload_to=user_image_directory_path, 
+        upload_to=user_image_directory_path,
         help_text="Additional profile image.",
         validators=[validate_image_file_size],
     )
@@ -256,7 +259,7 @@ class ProfileImage(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['order', '-uploaded_at']  
+        ordering = ['order', '-uploaded_at']
         verbose_name = "Profile Image"
         verbose_name_plural = "Profile Images"
         # Removed unique_together = ('user_profile', 'is_main')
@@ -268,11 +271,11 @@ class ProfileImage(models.Model):
         if self.is_main:
             # First, ensure no other ProfileImage is main for this user_profile
             ProfileImage.objects.filter(user_profile=self.user_profile).exclude(pk=self.pk).update(is_main=False)
-            
+
             # Then, update the main profile_picture field on UserProfile to this image
             self.user_profile.profile_picture = self.image
             self.user_profile.save(update_fields=['profile_picture'])
-            
+
             # Also update the main_additional_image foreign key on UserProfile
             self.user_profile.main_additional_image = self
             self.user_profile.save(update_fields=['main_additional_image'])
@@ -324,16 +327,16 @@ def auto_delete_file_on_delete_user_profile(sender, instance, **kwargs):
         if hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and \
            instance.profile_picture.name.endswith(settings.DEFAULT_PROFILE_PICTURE_PATH):
             return # Don't delete static default image
-        
+
         # If it's stored with the 'profile_pics/' prefix but is the default, also skip
-        if (hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and 
-            instance.profile_picture.name.startswith('profile_pics/') and 
+        if (hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and
+            instance.profile_picture.name.startswith('profile_pics/') and
             instance.profile_picture.name.endswith(settings.DEFAULT_PROFILE_PICTURE_PATH)):
             return
 
         if os.path.isfile(instance.profile_picture.path):
             os.remove(instance.profile_picture.path)
-    
+
     # Cascade delete for ProfileImage instances and their files is handled by their own signals.
 
 @receiver(pre_save, sender=UserProfile)
@@ -356,10 +359,10 @@ def auto_delete_file_on_change_user_profile(sender, instance, **kwargs):
         if hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and \
            old_profile_picture.name.endswith(settings.DEFAULT_PROFILE_PICTURE_PATH):
             return # Don't delete static default image
-        
+
         # If it's stored with the 'profile_pics/' prefix but is the default, also skip
-        if (hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and 
-            old_profile_picture.name.startswith('profile_pics/') and 
+        if (hasattr(settings, 'DEFAULT_PROFILE_PICTURE_PATH') and
+            old_profile_picture.name.startswith('profile_pics/') and
             old_profile_picture.name.endswith(settings.DEFAULT_PROFILE_PICTURE_PATH)):
             return
 
@@ -373,13 +376,13 @@ class Like(models.Model):
     Represents a 'like' action between two UserProfile instances.
     """
     liker = models.ForeignKey(
-        UserProfile, 
+        UserProfile,
         on_delete=models.CASCADE,
         related_name='likes_given',
         help_text="The user who performed the 'like' action."
     )
     liked_user = models.ForeignKey(
-        UserProfile, 
+        UserProfile,
         on_delete=models.CASCADE,
         related_name='likes_received',
         help_text="The user who was 'liked'."
@@ -416,7 +419,7 @@ class SubscriptionPlan(models.Model):
     description = models.TextField(blank=True, null=True)
     features = models.JSONField(default=list, blank=True, help_text="List of features included in this plan (e.g., ['Ad-free experience', 'Send unlimited messages'])")
     is_active = models.BooleanField(default=True)
-    paystack_plan_code = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="Paystack plan code for recurring subscriptions") # ADDED
+    paystack_plan_code = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="Paystack plan code for recurring subscriptions")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -428,14 +431,14 @@ class SubscriptionPlan(models.Model):
         return f"{self.name} (₦{self.price})"
 
 class UserSubscription(models.Model):
-    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='subscription') 
+    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='subscription')
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True)
     start_date = models.DateTimeField(auto_now_add=True)
     end_date = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=False)
-    paystack_authorization_code = models.CharField(max_length=100, blank=True, null=True, help_text="Authorization code from Paystack for recurring payments") # ADDED
-    paystack_subscription_code = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="Subscription code from Paystack for managing the subscription") # ADDED
-    paystack_email_token = models.CharField(max_length=100, blank=True, null=True, help_text="Email token from Paystack for re-authorization if needed") # ADDED
+    paystack_authorization_code = models.CharField(max_length=100, blank=True, null=True, help_text="Authorization code from Paystack for recurring payments")
+    paystack_subscription_code = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="Subscription code from Paystack for managing the subscription")
+    paystack_email_token = models.CharField(max_length=100, blank=True, null=True, help_text="Email token from Paystack for re-authorization if needed")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -450,16 +453,17 @@ class UserSubscription(models.Model):
         # Calculate end_date only if it's not already set and plan exists
         if self.plan and not self.end_date:
             self.end_date = self.start_date + timedelta(days=self.plan.duration_days)
-        
+
         # If the subscription is active and has an end_date, ensure it's not past
         # This logic might be better handled by a property or in views, but for simplicity here:
-        if self.is_active and self.end_date and self.end_date < models.DateTimeField().now(): # Use models.DateTimeField().now() or django.utils.timezone.now()
+        # CORRECTED: Use timezone.now() for comparison
+        if self.is_active and self.end_date and self.end_date < timezone.now():
             self.is_active = False # Automatically deactivate if past end_date
 
         super().save(*args, **kwargs)
 
 class PaymentTransaction(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='payment_transactions') 
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='payment_transactions')
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     reference = models.CharField(max_length=100, unique=True, help_text="Unique transaction reference from Paystack")
@@ -483,3 +487,63 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f"Transaction {self.reference} for {self.user.username} - {self.status}"
+
+
+# --- NEW: Notification Model ---
+class Notification(models.Model):
+    """
+    Generic notification model for likes, matches, subscription reminders, etc.
+    """
+    NOTIFICATION_TYPES = [
+        ('like', 'New Like'),
+        ('match', 'New Match'),
+        ('subscription_reminder', 'Subscription Reminder'),
+        ('system', 'System Message'), # For general site announcements/alerts
+        # Add more types as needed (e.g., 'message', 'profile_view')
+    ]
+
+    recipient = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text="The user who receives this notification."
+    )
+    sender = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL, # Set to null if sender user is deleted
+        null=True,
+        blank=True,
+        related_name='sent_notifications',
+        help_text="The user who triggered the notification (if any, e.g., the liker). Null for system notifications."
+    )
+    notification_type = models.CharField(
+        max_length=50,
+        choices=NOTIFICATION_TYPES,
+        help_text="The type of notification (e.g., like, match, subscription_reminder)."
+    )
+    message = models.TextField(
+        help_text="The custom message for the notification."
+    )
+    link = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Optional URL for the user to navigate to when clicking the notification."
+    )
+    is_read = models.BooleanField(
+        default=False,
+        help_text="Indicates if the user has read this notification."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time when the notification was created."
+    )
+
+    class Meta:
+        ordering = ['-created_at'] # Latest notifications first
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
+
+    def __str__(self):
+        # Note: get_notification_type_display() uses the 'display' part of the choices tuple
+        return f"[{self.get_notification_type_display()}] for {self.recipient.username}: {self.message[:50]}"

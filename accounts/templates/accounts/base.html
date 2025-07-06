@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {# This block allows child templates to set their own titles #}
-    <title>{% block title %}My LOVENY App{% endblock %}</title> 
+    <title>{% block title %}My LOVENY App{% endblock %}</title>
     
     {# Load Tailwind CSS from CDN. #}
     <script src="https://cdn.tailwindcss.com"></script>
@@ -305,7 +305,7 @@
                                0 0 20px 6px var(--glow-purple-base);
                    transition: box-shadow 0.3s ease-in-out;"> {# Removed bg-pink-600, added glow #}
         {# LOVENY Logo (Image) #}
-        <a href="{% url 'accounts:homepage' %}" class="z-50">
+        <a href="{% url 'accounts:home' %}" class="z-50"> {# Corrected to 'home' #}
             <img src="{% static 'IMAGES/LOVENY LOGO.png' %}" alt="LOVENY Logo" class="h-10 md:h-12 transition"> {# Adjusted logo size #}
         </a>
         
@@ -327,14 +327,14 @@
             
             {# Navigation links wrapper - now directly inside sidebar-nav and simplified #}
             {# Removed the redundant inner div. Links are now direct children of #sidebar-nav on desktop. #}
-            <a href="{% url 'accounts:homepage' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Home</a>
+            <a href="{% url 'accounts:home' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Home</a> {# Corrected to 'home' #}
             <a href="{% url 'accounts:browse_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Browse</a>
-            <a href="{% url 'accounts:matches_view' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Matches</a>
+            <a href="{% url 'accounts:matches_view' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Matches</a> {# Corrected to 'matches_view' #}
             <a href="{% url 'accounts:swipe_profiles' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Swipe</a> {# Added Swipe button #}
             <a href="{% url 'accounts:profile' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">My Profile</a>
-            {# Conditional display for Premium link #}
+            {# Conditional display for Premium link (re-added) #}
             {% if not user.is_premium %}
-                <a href="{% url 'accounts:subscription_plans' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Premium</a>
+                <a href="{% url 'accounts:choose_plan' %}" class="hover:text-[var(--link-hover-color)] transition text-lg md:text-base w-full md:w-auto text-center py-2 md:py-0">Premium</a>
             {% endif %}
             {% if user.is_authenticated %}
                 {# The logout link is now a form #}

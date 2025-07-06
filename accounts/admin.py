@@ -13,13 +13,13 @@ class CustomUserAdmin(UserAdmin):
     # The fields to be used in displaying the User model.
     # These override the defaults in UserAdmin.
     list_display = (
-        'username', 'email', 'first_name', 'last_name', 
-        'is_staff', 'is_active', 'date_joined', 'is_premium', 
+        'username', 'email', 'first_name', 'last_name',
+        'is_staff', 'is_active', 'date_joined', 'is_premium',
         'looking_for', # Changed 'user_type' to 'looking_for'
         'gender', 'location', 'phone_number',
     )
     list_filter = (
-        'is_staff', 'is_active', 'is_superuser', 'is_premium', 
+        'is_staff', 'is_active', 'is_superuser', 'is_premium',
         'gender', 'looking_for', # Changed 'user_type' to 'looking_for'
         'seeking', 'date_joined',
     )
@@ -41,8 +41,8 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password', 'password2', 'first_name', 'last_name', 
-                        'bio', 'gender', 'date_of_birth', 'location', 'phone_number', 
+            'fields': ('username', 'email', 'password', 'password2', 'first_name', 'last_name',
+                        'bio', 'gender', 'date_of_birth', 'location', 'phone_number',
                         'looking_for', 'seeking', 'is_premium', 'premium_expiry_date'), # Changed 'user_type' to 'looking_for'
         }),
     )
@@ -70,12 +70,12 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
 @admin.register(UserSubscription)
 class UserSubscriptionAdmin(admin.ModelAdmin):
     list_display = (
-        'user', 'plan', 'start_date', 'end_date', 'is_active', 
+        'user', 'plan', 'start_date', 'end_date', 'is_active',
         'paystack_authorization_code', 'paystack_subscription_code', 'paystack_email_token' # Added Paystack fields
     )
     list_filter = ('is_active', 'plan')
     search_fields = (
-        'user__username', 'plan__name', 'paystack_authorization_code', 
+        'user__username', 'plan__name', 'paystack_authorization_code',
         'paystack_subscription_code', 'paystack_email_token' # Added Paystack fields
     )
     raw_id_fields = ('user', 'plan')

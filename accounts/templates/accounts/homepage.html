@@ -23,7 +23,7 @@
         <div class="space-x-4 flex flex-col sm:flex-row justify-center items-center gap-4"> {# Added flex for buttons #}
             {% if user.is_authenticated %}
                 <a href="{% url 'accounts:browse_profiles' %}" class="btn btn-primary py-3 px-6 text-lg">Browse Profiles</a>
-                <a href="{% url 'accounts:matches' %}" class="btn btn-secondary py-3 px-6 text-lg">View Matches</a>
+                <a href="{% url 'accounts:matches_view' %}" class="btn btn-secondary py-3 px-6 text-lg">View Matches</a> {# Corrected to 'matches_view' #}
             {% else %}
                 <a href="{% url 'accounts:signup' %}" class="btn btn-primary py-3 px-6 text-lg">Join LOVENY Now!</a>
                 <a href="{% url 'accounts:login' %}" class="btn btn-secondary py-3 px-6 text-lg">Log In</a>
